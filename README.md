@@ -30,6 +30,23 @@ ground rules that govern share accounting and payouts.
 `pnpm test` builds every package and runs the suites, including an end-to-end
 one that puts a fake pool and a fake miner either side of the proxy.
 
+## Running a worker
+
+On the orchestrator, create an account and enrol the rig:
+
+    zgrove account --payout <shielded address>
+    zgrove enroll --account <id> --worker rig1 --key <public key>
+
+On the contributor's machine:
+
+    zgrove-worker init        # prints the public key to enrol
+    ZGROVE_ACCOUNT_ID=<id> zgrove-worker run
+
+With no miner configured, `run` prints the stratum address and the session
+token to point a miner at. Set `ZGROVE_MINER_COMMAND` and `ZGROVE_MINER_ARGS`
+(a JSON array, where `{host}`, `{port}` and `{token}` are filled in) to have
+the agent launch the miner itself.
+
 ## Status
 
 One worker mines a single algorithm through the proxy to one upstream pool,

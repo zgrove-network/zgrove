@@ -75,7 +75,19 @@ export function createSessionStore(options: SessionStoreOptions): SessionStore {
         sessions.delete(token);
         return null;
       }
-      return session;
+
+      // Sliding, so a rig that keeps mining keeps its token. A miner
+      // reconnects on its own after a network blip and logs back in with the
+      // token it already holds; a fixed expiry would refuse a working rig
+      // mid-run, and the agent has no way to hand a running miner a new one.
+      // Silence for the full TTL still ends it.
+      const extended: WorkerSession = {
+        ...session,
+        expiresAt: nowSeconds + options.ttlSeconds,
+      };
+      sessions.delete(token);
+      sessions.set(token, extended);
+      return extended;
     },
 
     size: () => sessions.size,
