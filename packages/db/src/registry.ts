@@ -9,6 +9,8 @@ export interface WorkerKeyBinding {
   readonly publicKey: string;
   readonly accountId: string;
   readonly workerId: number;
+  /** Carried so a session can name the worker without a second lookup. */
+  readonly workerName: string;
 }
 
 export interface RegisterWorkerKey {
@@ -37,6 +39,7 @@ interface BindingRow {
   readonly public_key: string;
   readonly account_id: string;
   readonly worker_id: number;
+  readonly worker_name: string;
 }
 
 export function createRegistry(db: Db): Registry {
@@ -64,9 +67,12 @@ export function createRegistry(db: Db): Registry {
     VALUES (?, ?, ?, ?, ?)
   `);
 
-  const selectKey = db.prepare<[string], BindingRow>(
-    "SELECT public_key, account_id, worker_id FROM worker_keys WHERE public_key = ?",
-  );
+  const selectKey = db.prepare<[string], BindingRow>(`
+    SELECT k.public_key, k.account_id, k.worker_id, w.worker_name
+    FROM worker_keys k
+    JOIN workers w ON w.id = k.worker_id
+    WHERE k.public_key = ?
+  `);
 
   const touchKey = db.prepare(
     "UPDATE worker_keys SET last_seen_at = ? WHERE public_key = ?",
@@ -98,6 +104,7 @@ export function createRegistry(db: Db): Registry {
           publicKey: existing.public_key,
           accountId: existing.account_id,
           workerId: existing.worker_id,
+          workerName: existing.worker_name,
         };
       }
 
@@ -123,6 +130,7 @@ export function createRegistry(db: Db): Registry {
         publicKey: registration.publicKey,
         accountId: registration.accountId,
         workerId: worker.id,
+        workerName: registration.workerName,
       };
     },
 
@@ -134,6 +142,7 @@ export function createRegistry(db: Db): Registry {
             publicKey: row.public_key,
             accountId: row.account_id,
             workerId: row.worker_id,
+            workerName: row.worker_name,
           };
     },
 

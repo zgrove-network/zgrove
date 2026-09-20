@@ -1,5 +1,12 @@
 import { issueSessionToken } from "@zgrove/protocol";
 
+/** What a token stands for: the worker row, and who it earns for. */
+export interface SessionSubject {
+  readonly workerId: number;
+  readonly accountId: string;
+  readonly workerName: string;
+}
+
 export interface SessionStoreOptions {
   readonly ttlSeconds: number;
   readonly maxSessions: number;
@@ -9,11 +16,12 @@ export interface WorkerSession {
   readonly token: string;
   readonly workerId: number;
   readonly accountId: string;
+  readonly workerName: string;
   readonly expiresAt: number;
 }
 
 export interface SessionStore {
-  issue(workerId: number, accountId: string, nowSeconds: number): WorkerSession;
+  issue(binding: SessionSubject, nowSeconds: number): WorkerSession;
   resolve(token: string, nowSeconds: number): WorkerSession | null;
   size(): number;
 }
@@ -36,7 +44,7 @@ export function createSessionStore(options: SessionStoreOptions): SessionStore {
   }
 
   return {
-    issue(workerId, accountId, nowSeconds) {
+    issue(subject, nowSeconds) {
       expire(nowSeconds);
 
       while (sessions.size >= options.maxSessions) {
@@ -49,8 +57,9 @@ export function createSessionStore(options: SessionStoreOptions): SessionStore {
 
       const session: WorkerSession = {
         token: issueSessionToken(),
-        workerId,
-        accountId,
+        workerId: subject.workerId,
+        accountId: subject.accountId,
+        workerName: subject.workerName,
         expiresAt: nowSeconds + options.ttlSeconds,
       };
       sessions.set(session.token, session);

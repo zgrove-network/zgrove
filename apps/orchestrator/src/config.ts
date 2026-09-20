@@ -1,5 +1,10 @@
+import type { ControlServerOptions } from "./control/server.js";
 import type { SessionOptions } from "./session.js";
 import type { StratumServerOptions } from "./server.js";
+
+/** Everything a session needs except the login resolver, which is wired from
+ * live stores rather than read from the environment. */
+export type SessionConfig = Omit<SessionOptions, "resolveLogin">;
 
 export interface AccountingConfig {
   readonly databasePath: string;
@@ -7,9 +12,18 @@ export interface AccountingConfig {
   readonly algo: string;
 }
 
+export interface ControlConfig {
+  readonly server: ControlServerOptions;
+  readonly challengeTtlSeconds: number;
+  readonly maxOutstandingChallenges: number;
+  readonly sessionTtlSeconds: number;
+  readonly maxSessions: number;
+}
+
 export interface OrchestratorConfig {
   readonly stratum: StratumServerOptions;
-  readonly session: SessionOptions;
+  readonly session: SessionConfig;
+  readonly control: ControlConfig;
   readonly accounting: AccountingConfig;
 }
 
@@ -41,6 +55,26 @@ export function loadConfig(env: NodeJS.ProcessEnv): OrchestratorConfig {
       maxQueuedMessages: readNumber(env, "ZGROVE_MAX_QUEUED_MESSAGES", 32),
       submitTimeoutMs: readNumber(env, "ZGROVE_SUBMIT_TIMEOUT_MS", 60_000),
       maxPendingSubmits: readNumber(env, "ZGROVE_MAX_PENDING_SUBMITS", 256),
+    },
+    control: {
+      server: {
+        // Loopback by default: this endpoint hands out bearer tokens and
+        // speaks plain HTTP, so exposing it is a deliberate act behind TLS.
+        host: env["ZGROVE_CONTROL_HOST"] ?? "127.0.0.1",
+        port: readNumber(env, "ZGROVE_CONTROL_PORT", 3334),
+        maxBodyBytes: readNumber(env, "ZGROVE_CONTROL_MAX_BODY", 8 * 1024),
+        // What a worker is told to point its miner at, which is not always
+        // the interface the proxy binds.
+        stratumHost:
+          env["ZGROVE_ADVERTISED_STRATUM_HOST"] ??
+          env["ZGROVE_STRATUM_HOST"] ??
+          "127.0.0.1",
+        stratumPort: readNumber(env, "ZGROVE_STRATUM_PORT", 3333),
+      },
+      challengeTtlSeconds: readNumber(env, "ZGROVE_CHALLENGE_TTL_SECONDS", 60),
+      maxOutstandingChallenges: readNumber(env, "ZGROVE_MAX_CHALLENGES", 1024),
+      sessionTtlSeconds: readNumber(env, "ZGROVE_SESSION_TTL_SECONDS", 3600),
+      maxSessions: readNumber(env, "ZGROVE_MAX_SESSIONS", 4096),
     },
     accounting: {
       databasePath: env["ZGROVE_DB_PATH"] ?? "data/zgrove.sqlite",

@@ -1,6 +1,9 @@
 import { connect, createServer, type Server, type Socket } from "node:net";
 
 import { createAccounting, migrate, openDatabase, type Accounting } from "@zgrove/db";
+import { parseWorkerLogin } from "@zgrove/protocol";
+
+import type { ParsedLogin } from "@zgrove/protocol";
 
 import { createStratumServer } from "../server.js";
 import { createSession, type Session } from "../session.js";
@@ -17,6 +20,7 @@ export type SubmitAnswer = (request: Line) => Line | null;
 
 export interface HarnessOptions {
   readonly answerSubmit?: SubmitAnswer;
+  readonly resolveLogin?: (raw: unknown) => ParsedLogin;
   readonly submitTimeoutMs?: number;
   readonly maxPendingSubmits?: number;
   readonly difficulty?: number;
@@ -112,6 +116,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
               maxQueuedMessages: 32,
               submitTimeoutMs: options.submitTimeoutMs ?? 60_000,
               maxPendingSubmits: options.maxPendingSubmits ?? 256,
+              resolveLogin: options.resolveLogin ?? parseWorkerLogin,
             },
             {
               onIdentity() {},

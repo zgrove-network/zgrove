@@ -151,7 +151,7 @@ function handleAttest(
   }
 
   deps.registry.touchWorkerKey(attestation.publicKey, now);
-  const session = deps.sessions.issue(binding.workerId, binding.accountId, now);
+  const session = deps.sessions.issue(binding, now);
 
   log("info", "control.session_issued", {
     account: binding.accountId,

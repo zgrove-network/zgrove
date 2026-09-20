@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { WorkerStats } from "@zgrove/db";
+import {
+  createRegistry,
+  migrate,
+  openDatabase,
+  type WorkerStats,
+} from "@zgrove/db";
+import { isSessionToken } from "@zgrove/protocol";
+
+import { createSessionStore } from "../control/sessions.js";
 
 import {
   CONTRIBUTOR_LOGIN,
@@ -12,6 +20,7 @@ import {
 } from "./harness.js";
 
 const DIFFICULTY = 512;
+const NOW = 1_758_400_000;
 
 function submit(id: number, job: string): Record<string, unknown> {
   return {
@@ -130,6 +139,88 @@ test("a submit upstream never answers is recorded as neither", async () => {
     assert.equal(row.rejected, 0);
     assert.equal(row.unresolved, 1);
     assert.equal(row.acceptedDifficulty, DIFFICULTY);
+  } finally {
+    await harness.stop();
+  }
+});
+
+test("a session token credits the worker the key was bound to", async () => {
+  const db = openDatabase(":memory:");
+  migrate(db);
+  const registry = createRegistry(db);
+  registry.createAccount({ id: "acct_c", payoutAddress: "u1shielded" }, NOW);
+
+  const binding = registry.registerWorkerKey({
+    publicKey: "key-rig1",
+    accountId: "acct_c",
+    workerName: "rig1",
+    atSeconds: NOW,
+  });
+
+  const sessions = createSessionStore({ ttlSeconds: 3600, maxSessions: 8 });
+  const token = sessions.issue(binding, NOW).token;
+
+  const harness = await startHarness({
+    difficulty: DIFFICULTY,
+    resolveLogin: (raw) => {
+      if (typeof raw !== "string" || !isSessionToken(raw)) {
+        return { ok: false, reason: "not-a-string" };
+      }
+      const session = sessions.resolve(raw, NOW);
+      return session === null
+        ? { ok: false, reason: "unknown-token" }
+        : {
+            ok: true,
+            identity: {
+              username: session.accountId,
+              workerName: session.workerName,
+              login: `${session.accountId}.${session.workerName}`,
+            },
+          };
+    },
+  });
+
+  try {
+    const miner = await authorizedMiner(harness, token);
+    miner.send({
+      id: 3,
+      method: "mining.submit",
+      params: [token, "job1", "ntime", "nonce"],
+    });
+
+    const row = await settled(harness, (stats) => stats.accepted === 1, "the share");
+
+    // The token names the account and the rig; the payout address never
+    // appeared on the wire at all.
+    assert.equal(row.username, "acct_c");
+    assert.equal(row.workerName, "rig1");
+    assert.equal(row.acceptedDifficulty, DIFFICULTY);
+  } finally {
+    await harness.stop();
+    db.close();
+  }
+});
+
+test("a token the orchestrator does not know is refused", async () => {
+  const harness = await startHarness({
+    resolveLogin: () => ({ ok: false, reason: "unknown-token" }),
+  });
+  try {
+    const miner = await harness.connectMiner();
+    const before = harness.upstreamSaw().length;
+
+    miner.send({
+      id: 1,
+      method: "mining.authorize",
+      params: ["zgt_expiredtokenvalue", "x"],
+    });
+    const answer = await miner.waitFor((m) => m["id"] === 1, "refusal");
+
+    // An expired token is a worker that can no longer be named, so it is
+    // refused here rather than relayed under the pool's account.
+    assert.equal(answer["result"], false);
+    assert.equal((answer["error"] as unknown[])[1], "Unauthorized worker: unknown-token");
+    assert.equal(harness.upstreamSaw().length, before);
   } finally {
     await harness.stop();
   }

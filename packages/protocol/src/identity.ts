@@ -20,7 +20,9 @@ export type IdentityRejection =
   | "too-long"
   | "illegal-character"
   | "empty-username"
-  | "empty-worker-name";
+  | "empty-worker-name"
+  /** The login was a session token, and it is not live. */
+  | "unknown-token";
 
 export type ParsedLogin =
   | { readonly ok: true; readonly identity: WorkerIdentity }

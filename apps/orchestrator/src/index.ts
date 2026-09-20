@@ -2,10 +2,19 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-import { createAccounting, migrate, openDatabase } from "@zgrove/db";
-import { isStratumRequest, type WorkerIdentity } from "@zgrove/protocol";
+import { createAccounting, createRegistry, migrate, openDatabase } from "@zgrove/db";
+import {
+  isSessionToken,
+  isStratumRequest,
+  parseWorkerLogin,
+  type ParsedLogin,
+  type WorkerIdentity,
+} from "@zgrove/protocol";
 
 import { loadConfig } from "./config.js";
+import { createChallengeStore } from "./control/challenges.js";
+import { createControlServer } from "./control/server.js";
+import { createSessionStore } from "./control/sessions.js";
 import { log } from "./log.js";
 import { createSession, type Session } from "./session.js";
 import { createStratumServer, type MinerConnection } from "./server.js";
@@ -19,6 +28,40 @@ if (applied.length > 0) {
   log("info", "db.migrated", { versions: applied });
 }
 const accounting = createAccounting(db);
+const registry = createRegistry(db);
+
+const challenges = createChallengeStore({
+  ttlSeconds: config.control.challengeTtlSeconds,
+  maxOutstanding: config.control.maxOutstandingChallenges,
+});
+const workerSessions = createSessionStore({
+  ttlSeconds: config.control.sessionTtlSeconds,
+  maxSessions: config.control.maxSessions,
+});
+
+/**
+ * A login is either a live session token, which names a worker that proved
+ * itself, or a plain name, which names one that merely claimed to be. The
+ * second path stays until workers are on the control plane and then goes.
+ */
+function resolveLogin(raw: unknown): ParsedLogin {
+  if (typeof raw === "string" && isSessionToken(raw)) {
+    const session = workerSessions.resolve(raw, Math.floor(Date.now() / 1000));
+    if (session === null) {
+      return { ok: false, reason: "unknown-token" };
+    }
+    return {
+      ok: true,
+      identity: {
+        username: session.accountId,
+        workerName: session.workerName,
+        login: `${session.accountId}.${session.workerName}`,
+      },
+    };
+  }
+
+  return parseWorkerLogin(raw);
+}
 
 // One upsert per worker rather than one per share. The row id is stable, and
 // how recently a worker was active is already readable from its buckets.
@@ -43,7 +86,7 @@ function sessionFor(connection: MinerConnection): Session {
     return existing;
   }
 
-  const session = createSession(connection, config.session, {
+  const session = createSession(connection, { ...config.session, resolveLogin }, {
     onIdentity(identity) {
       workerIdFor(identity);
       log("info", "worker.identified", {
@@ -120,6 +163,25 @@ const server = createStratumServer(config.stratum, {
   },
 });
 
+const control = createControlServer(config.control.server, {
+  challenges,
+  sessions: workerSessions,
+  registry,
+  now: () => Math.floor(Date.now() / 1000),
+});
+
+control.on("error", (error) => {
+  log("error", "control.listen_failed", { message: error.message });
+  process.exitCode = 1;
+});
+
+control.listen(config.control.server.port, config.control.server.host, () => {
+  log("info", "control.listening", {
+    host: config.control.server.host,
+    port: config.control.server.port,
+  });
+});
+
 server.on("error", (error) => {
   log("error", "stratum.listen_failed", { message: error.message });
   process.exitCode = 1;
@@ -139,6 +201,7 @@ server.listen(config.stratum.port, config.stratum.host, () => {
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     log("info", "shutdown", { signal });
+    control.close();
     server.close(() => {
       db.close();
       process.exit(0);

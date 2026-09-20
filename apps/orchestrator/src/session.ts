@@ -3,7 +3,7 @@ import {
   isShareAccepted,
   isStratumRequest,
   isStratumResponse,
-  parseWorkerLogin,
+  type ParsedLogin,
   type StratumId,
   type StratumMessage,
   type StratumRequest,
@@ -25,6 +25,12 @@ export interface SessionOptions {
   /** How long a submit waits for an answer before it is given up on. */
   readonly submitTimeoutMs: number;
   readonly maxPendingSubmits: number;
+  /**
+   * Turns whatever a miner sent as its login into a worker, or says why it
+   * could not. Injected because a login is a name in one deployment and a
+   * signed session token in another, and the relay should not care which.
+   */
+  readonly resolveLogin: (raw: unknown) => ParsedLogin;
 }
 
 /** A submit that has been relayed and is waiting on upstream's verdict. */
@@ -231,7 +237,7 @@ export function createSession(
   }
 
   function handleAuthorize(request: StratumRequest): void {
-    const parsed = parseWorkerLogin(request.params[0]);
+    const parsed = options.resolveLogin(request.params[0]);
     if (!parsed.ok) {
       log("warn", "miner.login_rejected", {
         miner: miner.id,
