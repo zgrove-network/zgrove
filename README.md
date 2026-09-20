@@ -23,6 +23,6 @@ ground rules that govern share accounting and payouts.
 
 ## Status
 
-Milestone 1: one worker mines a single algorithm through the proxy to one
-upstream pool, and every accepted share lands in the database attributed to
-that worker. Nothing in this repo moves funds yet.
+Building the first end-to-end path: one worker mines a single algorithm
+through the proxy to one upstream pool, and every accepted share lands in
+the database attributed to that worker. Nothing in this repo moves funds yet.
