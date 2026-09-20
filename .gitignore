@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# SQLite lives outside version control; it is the accounting source of truth.
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Wallet keys and pool credentials never enter the repo.
+.env
+.env.*
+!.env.example
+secrets/
+
+.DS_Store
