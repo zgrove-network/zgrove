@@ -26,8 +26,14 @@ function freshDatabase(): { db: Db; accounting: Accounting } {
 
 test("migrating twice applies each migration once", () => {
   const db = openDatabase(":memory:");
-  assert.deepEqual(migrate(db), [1]);
+
+  // The property is idempotence, not how many migrations exist today, or
+  // this test has to be edited every time one is added.
+  const first = migrate(db);
+  assert.ok(first.length > 0);
+  assert.deepEqual([...first].sort((a, b) => a - b), [...first]);
   assert.deepEqual(migrate(db), []);
+
   db.close();
 });
 
@@ -56,7 +62,7 @@ test("weight is credited only where upstream accepted", () => {
   accounting.recordShare({
     workerId: worker,
     algo: "equihash",
-    accepted: true,
+    outcome: "accepted",
     difficulty: 4,
     atSeconds: 1_000,
   });
@@ -64,7 +70,7 @@ test("weight is credited only where upstream accepted", () => {
   accounting.recordShare({
     workerId: worker,
     algo: "equihash",
-    accepted: false,
+    outcome: "rejected",
     difficulty: 99,
     atSeconds: 1_000,
   });
@@ -90,7 +96,7 @@ test("shares either side of a bucket boundary land in two rows", () => {
     accounting.recordShare({
       workerId: worker,
       algo: "equihash",
-      accepted: true,
+      outcome: "accepted",
       difficulty: 1,
       atSeconds: at,
     });
@@ -126,7 +132,7 @@ test("the reporting window excludes its upper bound", () => {
   accounting.recordShare({
     workerId: worker,
     algo: "equihash",
-    accepted: true,
+    outcome: "accepted",
     difficulty: 1,
     atSeconds: bucket,
   });
@@ -147,7 +153,7 @@ test("a worker that submits nothing is still reported", () => {
   accounting.recordShare({
     workerId: 1,
     algo: "equihash",
-    accepted: true,
+    outcome: "accepted",
     difficulty: 1,
     atSeconds: 1_000,
   });
@@ -187,6 +193,30 @@ test("the schema refuses a duplicate worker and an orphan bucket", () => {
         .run(999, 0, "equihash"),
     /FOREIGN KEY/,
   );
+
+  db.close();
+});
+
+test("a submit upstream never answered is counted apart from a rejection", () => {
+  const { db, accounting } = freshDatabase();
+  const worker = accounting.touchWorker(RIG1, 1_000);
+
+  accounting.recordShare({
+    workerId: worker,
+    algo: "equihash",
+    outcome: "unresolved",
+    difficulty: 64,
+    atSeconds: 1_000,
+  });
+
+  const stats = accounting.statsBetween(0, 10_000);
+
+  // Folded into rejections it would blame the worker for the pool's silence;
+  // folded into acceptances it would invent confirmed work. It is neither.
+  assert.equal(stats[0]?.accepted, 0);
+  assert.equal(stats[0]?.rejected, 0);
+  assert.equal(stats[0]?.unresolved, 1);
+  assert.equal(stats[0]?.acceptedDifficulty, 0);
 
   db.close();
 });

@@ -3,11 +3,17 @@ import type { WorkerIdentity } from "@zgrove/protocol";
 import { bucketStartFor } from "./buckets.js";
 import type { Db } from "./database.js";
 
+/**
+ * What became of a submit. Three outcomes, not two: upstream can also say
+ * nothing at all, and that is not a rejection.
+ */
+export type ShareOutcome = "accepted" | "rejected" | "unresolved";
+
 export interface ShareRecord {
   readonly workerId: number;
   readonly algo: string;
   /** What upstream answered. Never what the worker claimed. */
-  readonly accepted: boolean;
+  readonly outcome: ShareOutcome;
   /** The share's weight at the difficulty upstream had set. */
   readonly difficulty: number;
   /** Submit-time value in millionths of a dollar. Zero until pricing lands. */
@@ -21,6 +27,8 @@ export interface WorkerStats {
   readonly workerName: string;
   readonly accepted: number;
   readonly rejected: number;
+  /** Submits upstream never answered. Not counted as either of the above. */
+  readonly unresolved: number;
   readonly acceptedDifficulty: number;
   readonly acceptedUsdMicros: number;
   readonly lastBucket: number | null;
@@ -44,6 +52,7 @@ interface StatsRow {
   readonly worker_name: string;
   readonly accepted: number;
   readonly rejected: number;
+  readonly unresolved: number;
   readonly accepted_difficulty: number;
   readonly accepted_usd_micros: number;
   readonly last_bucket: number | null;
@@ -71,15 +80,16 @@ export function createAccounting(db: Db): Accounting {
   const record = db.prepare(`
     INSERT INTO share_buckets (
       worker_id, bucket_start, algo,
-      accepted, rejected, accepted_difficulty, accepted_usd_micros
+      accepted, rejected, unresolved, accepted_difficulty, accepted_usd_micros
     )
     VALUES (
       @workerId, @bucketStart, @algo,
-      @accepted, @rejected, @difficulty, @usdMicros
+      @accepted, @rejected, @unresolved, @difficulty, @usdMicros
     )
     ON CONFLICT (worker_id, bucket_start, algo) DO UPDATE SET
       accepted            = share_buckets.accepted            + excluded.accepted,
       rejected            = share_buckets.rejected            + excluded.rejected,
+      unresolved          = share_buckets.unresolved          + excluded.unresolved,
       accepted_difficulty = share_buckets.accepted_difficulty + excluded.accepted_difficulty,
       accepted_usd_micros = share_buckets.accepted_usd_micros + excluded.accepted_usd_micros
   `);
@@ -93,6 +103,7 @@ export function createAccounting(db: Db): Accounting {
       w.worker_name                             AS worker_name,
       COALESCE(SUM(b.accepted), 0)              AS accepted,
       COALESCE(SUM(b.rejected), 0)              AS rejected,
+      COALESCE(SUM(b.unresolved), 0)            AS unresolved,
       COALESCE(SUM(b.accepted_difficulty), 0)   AS accepted_difficulty,
       COALESCE(SUM(b.accepted_usd_micros), 0)   AS accepted_usd_micros,
       MAX(b.bucket_start)                       AS last_bucket
@@ -121,16 +132,18 @@ export function createAccounting(db: Db): Accounting {
 
     recordShare(share) {
       // Weight and value attach to accepted shares only. Summing a rejected
-      // share's difficulty would let a worker inflate its own estimated
-      // hashrate by submitting shares upstream throws away.
+      // or unanswered share's difficulty would let a worker inflate its own
+      // estimated hashrate with shares nobody agreed to.
+      const accepted = share.outcome === "accepted";
       record.run({
         workerId: share.workerId,
         bucketStart: bucketStartFor(share.atSeconds),
         algo: share.algo,
-        accepted: share.accepted ? 1 : 0,
-        rejected: share.accepted ? 0 : 1,
-        difficulty: share.accepted ? share.difficulty : 0,
-        usdMicros: share.accepted ? Math.round(share.usdMicros ?? 0) : 0,
+        accepted: accepted ? 1 : 0,
+        rejected: share.outcome === "rejected" ? 1 : 0,
+        unresolved: share.outcome === "unresolved" ? 1 : 0,
+        difficulty: accepted ? share.difficulty : 0,
+        usdMicros: accepted ? Math.round(share.usdMicros ?? 0) : 0,
       });
     },
 
@@ -141,6 +154,7 @@ export function createAccounting(db: Db): Accounting {
         workerName: row.worker_name,
         accepted: row.accepted,
         rejected: row.rejected,
+        unresolved: row.unresolved,
         acceptedDifficulty: row.accepted_difficulty,
         acceptedUsdMicros: row.accepted_usd_micros,
         lastBucket: row.last_bucket,

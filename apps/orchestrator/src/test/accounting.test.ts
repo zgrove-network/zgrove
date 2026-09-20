@@ -97,7 +97,7 @@ test("a share answered with a string-spelled id is still credited", async () => 
   }
 });
 
-test("a submit upstream never answers is not recorded either way", async () => {
+test("a submit upstream never answers is recorded as neither", async () => {
   const harness = await startHarness({
     difficulty: DIFFICULTY,
     submitTimeoutMs: 100,
@@ -124,9 +124,11 @@ test("a submit upstream never answers is not recorded either way", async () => {
     const row = await settled(harness, (stats) => stats.accepted === 1, "the second share");
 
     // Counting silence as a rejection would blame the worker for the pool;
-    // counting it as accepted would invent work nobody confirmed.
+    // counting it as accepted would invent work nobody confirmed. It gets a
+    // column of its own so a pool going quiet is visible as itself.
     assert.equal(row.accepted, 1);
     assert.equal(row.rejected, 0);
+    assert.equal(row.unresolved, 1);
     assert.equal(row.acceptedDifficulty, DIFFICULTY);
   } finally {
     await harness.stop();

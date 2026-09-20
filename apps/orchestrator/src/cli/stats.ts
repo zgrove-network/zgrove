@@ -125,6 +125,7 @@ function writeTable(
     padRight("worker", nameWidth) +
     padLeft("accepted", 10) +
     padLeft("rejected", 10) +
+    padLeft("unresolved", 12) +
     padLeft("reject", 8) +
     padLeft("weight/s", 12) +
     padLeft("est. hashrate", 16) +
@@ -139,17 +140,20 @@ function writeTable(
 
   let accepted = 0;
   let rejected = 0;
+  let unresolved = 0;
   let weight = 0;
 
   for (const row of rows) {
     accepted += row.accepted;
     rejected += row.rejected;
+    unresolved += row.unresolved;
     weight += row.acceptedDifficulty;
 
     lines.push(
       padRight(`${row.username}.${row.workerName}`, nameWidth) +
         padLeft(String(row.accepted), 10) +
         padLeft(String(row.rejected), 10) +
+        padLeft(String(row.unresolved), 12) +
         padLeft(percent(row.rejected, row.accepted + row.rejected), 8) +
         padLeft(siPrefix(row.acceptedDifficulty / elapsedSeconds), 12) +
         padLeft(
@@ -167,6 +171,7 @@ function writeTable(
       padRight("total", nameWidth) +
         padLeft(String(accepted), 10) +
         padLeft(String(rejected), 10) +
+        padLeft(String(unresolved), 12) +
         padLeft(percent(rejected, accepted + rejected), 8) +
         padLeft(siPrefix(weight / elapsedSeconds), 12) +
         padLeft(`${siPrefix((weight * workPerDifficulty) / elapsedSeconds)}H/s`, 16),
@@ -178,6 +183,11 @@ function writeTable(
   // live heartbeat.
   lines.push("");
   lines.push(`Hashrate is estimated from accepted share weight. "last share" is bucket-granular (${BUCKET_SECONDS}s).`);
+  if (unresolved > 0) {
+    // Neither accepted nor rejected: upstream said nothing. A rising count
+    // here is a pool problem wearing the costume of a quiet worker.
+    lines.push(`${unresolved} submit(s) went unanswered by upstream in this window.`);
+  }
 
   process.stdout.write(`${lines.join("\n")}\n`);
 }

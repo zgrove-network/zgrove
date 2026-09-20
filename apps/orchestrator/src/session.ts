@@ -10,6 +10,8 @@ import {
   type WorkerIdentity,
 } from "@zgrove/protocol";
 
+import type { ShareOutcome } from "@zgrove/db";
+
 import { log } from "./log.js";
 import type { MinerConnection } from "./server.js";
 import { dialUpstream, type UpstreamConnection, type UpstreamOptions } from "./upstream.js";
@@ -39,8 +41,8 @@ interface PendingSubmit {
 
 export interface ResolvedShare {
   readonly identity: WorkerIdentity;
-  /** What upstream answered. */
-  readonly accepted: boolean;
+  /** What upstream answered, including having answered nothing. */
+  readonly outcome: ShareOutcome;
   readonly difficulty: number;
   readonly atSeconds: number;
   readonly jobId: string | null;
@@ -49,7 +51,7 @@ export interface ResolvedShare {
 export interface SessionHooks {
   onIdentity(identity: WorkerIdentity): void;
   onDifficulty(difficulty: number): void;
-  /** Called once per submit upstream answered, accepted or not. */
+  /** Called once per submit, however it ended. */
   onShare(share: ResolvedShare): void;
 }
 
@@ -105,10 +107,10 @@ export function createSession(
         return;
       }
       pending.delete(key);
-      // Deliberately not written to the database. Accounting records what
-      // upstream answered, and upstream answered nothing; counting this as a
-      // rejection would blame a worker for the pool's silence, and counting
-      // it as accepted would invent work nobody confirmed.
+      // Recorded in its own column rather than folded into rejections. An
+      // upstream that goes quiet has to be visible as itself, or the reports
+      // show a worker that simply stopped producing.
+      emit(submit, "unresolved");
       log("warn", "share.unresolved", {
         miner: miner.id,
         worker: submit.identity.login,
@@ -124,14 +126,18 @@ export function createSession(
     }
 
     pending.delete(key);
+    emit(submit, accepted ? "accepted" : "rejected");
+    return true;
+  }
+
+  function emit(submit: PendingSubmit, outcome: ShareOutcome): void {
     hooks.onShare({
       identity: submit.identity,
-      accepted,
+      outcome,
       difficulty: submit.difficulty,
       atSeconds: submit.atSeconds,
       jobId: submit.jobId,
     });
-    return true;
   }
 
   function ensureUpstream(): void {

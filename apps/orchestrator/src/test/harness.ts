@@ -125,7 +125,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
                 accounting.recordShare({
                   workerId,
                   algo: "equihash",
-                  accepted: share.accepted,
+                  outcome: share.outcome,
                   difficulty: share.difficulty,
                   atSeconds: share.atSeconds,
                 });

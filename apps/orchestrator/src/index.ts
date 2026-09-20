@@ -59,7 +59,7 @@ function sessionFor(connection: MinerConnection): Session {
       accounting.recordShare({
         workerId: workerIdFor(share.identity),
         algo: config.accounting.algo,
-        accepted: share.accepted,
+        outcome: share.outcome,
         difficulty: share.difficulty,
         atSeconds: share.atSeconds,
       });
@@ -67,7 +67,7 @@ function sessionFor(connection: MinerConnection): Session {
       log("info", "share.recorded", {
         miner: connection.id,
         worker: share.identity.login,
-        accepted: share.accepted,
+        outcome: share.outcome,
         difficulty: share.difficulty,
       });
     },
