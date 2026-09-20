@@ -1,7 +1,10 @@
 import {
   StratumMethod,
+  isShareAccepted,
   isStratumRequest,
+  isStratumResponse,
   parseWorkerLogin,
+  type StratumId,
   type StratumMessage,
   type StratumRequest,
   type WorkerIdentity,
@@ -17,11 +20,37 @@ export interface SessionOptions {
   readonly upstreamLogin: string;
   readonly upstreamPassword: string;
   readonly maxQueuedMessages: number;
+  /** How long a submit waits for an answer before it is given up on. */
+  readonly submitTimeoutMs: number;
+  readonly maxPendingSubmits: number;
+}
+
+/** A submit that has been relayed and is waiting on upstream's verdict. */
+interface PendingSubmit {
+  readonly identity: WorkerIdentity;
+  readonly jobId: string | null;
+  /** Difficulty in force when the share was sent, not when it was answered:
+   * upstream can retune between the two, and the share was worth what it was
+   * worth when it was made. */
+  readonly difficulty: number;
+  readonly atSeconds: number;
+  readonly sentAtMs: number;
+}
+
+export interface ResolvedShare {
+  readonly identity: WorkerIdentity;
+  /** What upstream answered. */
+  readonly accepted: boolean;
+  readonly difficulty: number;
+  readonly atSeconds: number;
+  readonly jobId: string | null;
 }
 
 export interface SessionHooks {
   onIdentity(identity: WorkerIdentity): void;
   onDifficulty(difficulty: number): void;
+  /** Called once per submit upstream answered, accepted or not. */
+  onShare(share: ResolvedShare): void;
 }
 
 export interface Session {
@@ -34,6 +63,9 @@ export interface Session {
 
 /** Stratum's conventional code for a login the pool will not accept. */
 const UNAUTHORIZED_WORKER = 24;
+
+/** Stratum's catch-all code, used where no specific one fits. */
+const OTHER_ERROR = 20;
 
 /**
  * Pairs one miner socket with one upstream socket and relays between them.
@@ -56,6 +88,52 @@ export function createSession(
 
   const queued: StratumMessage[] = [];
 
+  // Insertion-ordered, which is also age order, so expiry walks the front and
+  // stops at the first entry still in time.
+  const pending = new Map<string, PendingSubmit>();
+
+  // Upstream is free to answer a numeric id with its string spelling, and
+  // some do. Keying on the text form means a share is still matched to its
+  // submitter when that happens, instead of silently going unaccounted.
+  function pendingKey(id: StratumId): string {
+    return String(id);
+  }
+
+  function expirePending(nowMs: number): void {
+    for (const [key, submit] of pending) {
+      if (nowMs - submit.sentAtMs < options.submitTimeoutMs) {
+        return;
+      }
+      pending.delete(key);
+      // Deliberately not written to the database. Accounting records what
+      // upstream answered, and upstream answered nothing; counting this as a
+      // rejection would blame a worker for the pool's silence, and counting
+      // it as accepted would invent work nobody confirmed.
+      log("warn", "share.unresolved", {
+        miner: miner.id,
+        worker: submit.identity.login,
+      });
+    }
+  }
+
+  function resolveSubmit(id: StratumId, accepted: boolean): boolean {
+    const key = pendingKey(id);
+    const submit = pending.get(key);
+    if (submit === undefined) {
+      return false;
+    }
+
+    pending.delete(key);
+    hooks.onShare({
+      identity: submit.identity,
+      accepted,
+      difficulty: submit.difficulty,
+      atSeconds: submit.atSeconds,
+      jobId: submit.jobId,
+    });
+    return true;
+  }
+
   function ensureUpstream(): void {
     if (upstream !== null) {
       return;
@@ -72,6 +150,13 @@ export function createSession(
 
       onMessage(message) {
         observeDifficulty(message);
+
+        // Resolved before the answer is relayed, so a share is accounted for
+        // even if writing to the miner's socket fails.
+        if (isStratumResponse(message) && message.id !== null) {
+          resolveSubmit(message.id, isShareAccepted(message));
+        }
+
         miner.send(message);
       },
 
@@ -187,6 +272,39 @@ export function createSession(
       });
       return;
     }
+
+    const nowMs = Date.now();
+    expirePending(nowMs);
+
+    // An upstream that has stopped answering leaves every share in limbo, and
+    // the session is no longer accounting for anything. Ending it is honest;
+    // growing this map is not.
+    if (pending.size >= options.maxPendingSubmits) {
+      end("upstream left too many submits unanswered");
+      return;
+    }
+
+    const key = pendingKey(request.id);
+    if (pending.has(key)) {
+      // Upstream answers an id once. A second submit under an id still in
+      // flight would make one of the two shares unmatchable, so it is refused
+      // rather than allowed to quietly displace the first.
+      miner.send({
+        id: request.id,
+        result: false,
+        error: [OTHER_ERROR, "Duplicate submit id still in flight"],
+      });
+      return;
+    }
+
+    const jobId = request.params[1];
+    pending.set(key, {
+      identity,
+      jobId: typeof jobId === "string" ? jobId : null,
+      difficulty,
+      atSeconds: Math.floor(nowMs / 1000),
+      sentAtMs: nowMs,
+    });
 
     forward({
       id: request.id,

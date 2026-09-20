@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-import { isStratumRequest } from "@zgrove/protocol";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+
+import { createAccounting, migrate, openDatabase } from "@zgrove/db";
+import { isStratumRequest, type WorkerIdentity } from "@zgrove/protocol";
 
 import { loadConfig } from "./config.js";
 import { log } from "./log.js";
@@ -7,6 +11,29 @@ import { createSession, type Session } from "./session.js";
 import { createStratumServer, type MinerConnection } from "./server.js";
 
 const config = loadConfig(process.env);
+
+mkdirSync(dirname(config.accounting.databasePath), { recursive: true });
+const db = openDatabase(config.accounting.databasePath);
+const applied = migrate(db);
+if (applied.length > 0) {
+  log("info", "db.migrated", { versions: applied });
+}
+const accounting = createAccounting(db);
+
+// One upsert per worker rather than one per share. The row id is stable, and
+// how recently a worker was active is already readable from its buckets.
+const workerIds = new Map<string, number>();
+
+function workerIdFor(identity: WorkerIdentity): number {
+  const cached = workerIds.get(identity.login);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const id = accounting.touchWorker(identity, Math.floor(Date.now() / 1000));
+  workerIds.set(identity.login, id);
+  return id;
+}
 
 const sessions = new Map<number, Session>();
 
@@ -18,6 +45,7 @@ function sessionFor(connection: MinerConnection): Session {
 
   const session = createSession(connection, config.session, {
     onIdentity(identity) {
+      workerIdFor(identity);
       log("info", "worker.identified", {
         miner: connection.id,
         worker: identity.login,
@@ -25,6 +53,23 @@ function sessionFor(connection: MinerConnection): Session {
     },
     onDifficulty(difficulty) {
       log("info", "worker.difficulty", { miner: connection.id, difficulty });
+    },
+
+    onShare(share) {
+      accounting.recordShare({
+        workerId: workerIdFor(share.identity),
+        algo: config.accounting.algo,
+        accepted: share.accepted,
+        difficulty: share.difficulty,
+        atSeconds: share.atSeconds,
+      });
+
+      log("info", "share.recorded", {
+        miner: connection.id,
+        worker: share.identity.login,
+        accepted: share.accepted,
+        difficulty: share.difficulty,
+      });
     },
   });
 
@@ -85,6 +130,8 @@ server.listen(config.stratum.port, config.stratum.host, () => {
     host: config.stratum.host,
     port: config.stratum.port,
     upstream: `${config.session.upstream.host}:${config.session.upstream.port}`,
+    database: config.accounting.databasePath,
+    algo: config.accounting.algo,
     maxConnections: config.stratum.maxConnections,
   });
 });
@@ -93,6 +140,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     log("info", "shutdown", { signal });
     server.close(() => {
+      db.close();
       process.exit(0);
     });
   });

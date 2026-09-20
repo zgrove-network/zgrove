@@ -1,9 +1,16 @@
 import type { SessionOptions } from "./session.js";
 import type { StratumServerOptions } from "./server.js";
 
+export interface AccountingConfig {
+  readonly databasePath: string;
+  /** Labels every bucket row. One algorithm per process for now. */
+  readonly algo: string;
+}
+
 export interface OrchestratorConfig {
   readonly stratum: StratumServerOptions;
   readonly session: SessionOptions;
+  readonly accounting: AccountingConfig;
 }
 
 /**
@@ -32,6 +39,14 @@ export function loadConfig(env: NodeJS.ProcessEnv): OrchestratorConfig {
       upstreamLogin: readRequired(env, "ZGROVE_UPSTREAM_LOGIN"),
       upstreamPassword: env["ZGROVE_UPSTREAM_PASSWORD"] ?? "x",
       maxQueuedMessages: readNumber(env, "ZGROVE_MAX_QUEUED_MESSAGES", 32),
+      submitTimeoutMs: readNumber(env, "ZGROVE_SUBMIT_TIMEOUT_MS", 60_000),
+      maxPendingSubmits: readNumber(env, "ZGROVE_MAX_PENDING_SUBMITS", 256),
+    },
+    accounting: {
+      databasePath: env["ZGROVE_DB_PATH"] ?? "data/zgrove.sqlite",
+      // Not a default. Rows labelled with the wrong algorithm are wrong in a
+      // way nothing downstream can detect, let alone repair.
+      algo: readRequired(env, "ZGROVE_ALGO"),
     },
   };
 }
