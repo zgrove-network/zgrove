@@ -21,6 +21,15 @@ ground rules that govern share accounting and payouts.
 - Node 20+
 - pnpm 9
 
+## Development
+
+    pnpm install
+    pnpm build
+    pnpm test
+
+`pnpm test` builds every package and runs the suites, including an end-to-end
+one that puts a fake pool and a fake miner either side of the proxy.
+
 ## Status
 
 Building the first end-to-end path: one worker mines a single algorithm
