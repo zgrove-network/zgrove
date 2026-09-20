@@ -32,6 +32,12 @@ one that puts a fake pool and a fake miner either side of the proxy.
 
 ## Status
 
-Building the first end-to-end path: one worker mines a single algorithm
-through the proxy to one upstream pool, and every accepted share lands in
-the database attributed to that worker. Nothing in this repo moves funds yet.
+One worker mines a single algorithm through the proxy to one upstream pool,
+and every accepted share lands in the database attributed to that worker. The
+pool is told the account the proxy relays under and never the contributor's
+own login. Nothing in this repo moves funds yet.
+
+Known limits: no real pool has been on the other end of this yet, only a fake
+one; the hashrate estimate assumes a difficulty-1 algorithm and needs
+calibrating for Equihash; an upstream that drops is not reconnected to, by
+design, and the miner is dropped with it.
