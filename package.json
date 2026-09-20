@@ -10,7 +10,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r build && pnpm -r --if-present test"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
