@@ -1,7 +1,9 @@
+import type { SessionOptions } from "./session.js";
 import type { StratumServerOptions } from "./server.js";
 
 export interface OrchestratorConfig {
   readonly stratum: StratumServerOptions;
+  readonly session: SessionOptions;
 }
 
 /**
@@ -19,7 +21,27 @@ export function loadConfig(env: NodeJS.ProcessEnv): OrchestratorConfig {
       // this only fires on a peer that has genuinely stopped talking.
       idleTimeoutMs: readNumber(env, "ZGROVE_IDLE_TIMEOUT_MS", 600_000),
     },
+    session: {
+      upstream: {
+        host: readRequired(env, "ZGROVE_UPSTREAM_HOST"),
+        port: readNumber(env, "ZGROVE_UPSTREAM_PORT", 0),
+        connectTimeoutMs: readNumber(env, "ZGROVE_UPSTREAM_TIMEOUT_MS", 10_000),
+      },
+      // Not a default. Relaying under the wrong account would hand the work
+      // to whoever owns it, so an unset value has to stop the process.
+      upstreamLogin: readRequired(env, "ZGROVE_UPSTREAM_LOGIN"),
+      upstreamPassword: env["ZGROVE_UPSTREAM_PASSWORD"] ?? "x",
+      maxQueuedMessages: readNumber(env, "ZGROVE_MAX_QUEUED_MESSAGES", 32),
+    },
   };
+}
+
+function readRequired(env: NodeJS.ProcessEnv, name: string): string {
+  const raw = env[name];
+  if (raw === undefined || raw.trim() === "") {
+    throw new Error(`${name} must be set`);
+  }
+  return raw.trim();
 }
 
 function readNumber(
@@ -29,6 +51,9 @@ function readNumber(
 ): number {
   const raw = env[name];
   if (raw === undefined || raw.trim() === "") {
+    if (fallback === 0) {
+      throw new Error(`${name} must be set`);
+    }
     return fallback;
   }
 

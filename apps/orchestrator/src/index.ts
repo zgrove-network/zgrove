@@ -3,9 +3,34 @@ import { isStratumRequest } from "@zgrove/protocol";
 
 import { loadConfig } from "./config.js";
 import { log } from "./log.js";
-import { createStratumServer } from "./server.js";
+import { createSession, type Session } from "./session.js";
+import { createStratumServer, type MinerConnection } from "./server.js";
 
 const config = loadConfig(process.env);
+
+const sessions = new Map<number, Session>();
+
+function sessionFor(connection: MinerConnection): Session {
+  const existing = sessions.get(connection.id);
+  if (existing !== undefined) {
+    return existing;
+  }
+
+  const session = createSession(connection, config.session, {
+    onIdentity(identity) {
+      log("info", "worker.identified", {
+        miner: connection.id,
+        worker: identity.login,
+      });
+    },
+    onDifficulty(difficulty) {
+      log("info", "worker.difficulty", { miner: connection.id, difficulty });
+    },
+  });
+
+  sessions.set(connection.id, session);
+  return session;
+}
 
 const server = createStratumServer(config.stratum, {
   onConnect(connection) {
@@ -15,19 +40,19 @@ const server = createStratumServer(config.stratum, {
     });
   },
 
-  // Method and id only. Params carry the authorize password and, once
-  // upstream is wired in, the shares themselves; none of that belongs in a
-  // log file that will outlive the connection.
+  // Method and id only. Params carry the authorize password and the shares
+  // themselves; neither belongs in a log file that outlives the connection.
   onMessage(connection, message) {
     log("info", "miner.message", {
       miner: connection.id,
       method: isStratumRequest(message) ? message.method : null,
       id: message.id,
     });
+    sessionFor(connection).handleMinerMessage(message);
   },
 
-  // The line itself is attacker-controlled and unbounded up to the ceiling,
-  // so its size is recorded and its content is not.
+  // The line is attacker-controlled up to the ceiling, so its size is
+  // recorded and its content is not.
   onUndecodable(connection, line) {
     log("warn", "miner.undecodable", {
       miner: connection.id,
@@ -36,7 +61,17 @@ const server = createStratumServer(config.stratum, {
   },
 
   onDisconnect(connection, reason) {
-    log("info", "miner.disconnect", { miner: connection.id, reason });
+    const session = sessions.get(connection.id);
+    sessions.delete(connection.id);
+    // Closes the upstream socket this miner was paired with, so a miner
+    // hanging up never leaves a socket open against the pool.
+    session?.end(reason);
+
+    log("info", "miner.disconnect", {
+      miner: connection.id,
+      worker: session?.identity()?.login ?? null,
+      reason,
+    });
   },
 });
 
@@ -49,6 +84,7 @@ server.listen(config.stratum.port, config.stratum.host, () => {
   log("info", "stratum.listening", {
     host: config.stratum.host,
     port: config.stratum.port,
+    upstream: `${config.session.upstream.host}:${config.session.upstream.port}`,
     maxConnections: config.stratum.maxConnections,
   });
 });
@@ -56,8 +92,6 @@ server.listen(config.stratum.port, config.stratum.host, () => {
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     log("info", "shutdown", { signal });
-    // Stops accepting; sockets already up are left to drain rather than cut
-    // mid-share.
     server.close(() => {
       process.exit(0);
     });
