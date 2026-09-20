@@ -27,6 +27,8 @@ export interface Harness {
   /** Everything the fake pool received, in order. */
   upstreamSaw(): readonly Line[];
   connectMiner(): Promise<FakeMiner>;
+  /** Pushes a line from the pool, as a real one pushes notifications. */
+  pushFromUpstream(line: Line): void;
   dropUpstream(): void;
   stop(): Promise<void>;
 }
@@ -174,6 +176,12 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
           await until(() => (closed ? true : undefined), "miner socket to close");
         },
       };
+    },
+
+    pushFromUpstream(line) {
+      for (const socket of upstreamSockets) {
+        writeLine(socket, line);
+      }
     },
 
     dropUpstream() {

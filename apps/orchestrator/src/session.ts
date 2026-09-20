@@ -149,6 +149,21 @@ export function createSession(
       },
 
       onMessage(message) {
+        // Never relayed. client.reconnect names a host and port for the
+        // miner to move to, and that host is the upstream pool. Passing it
+        // on would send the contributor straight there, still mining under
+        // the pool account this proxy authorized, with nothing left in the
+        // path to record that the work was theirs. Ending the session makes
+        // the miner redial here instead.
+        if (
+          isStratumRequest(message) &&
+          message.method === StratumMethod.Reconnect
+        ) {
+          log("info", "upstream.reconnect_refused", { miner: miner.id });
+          end("upstream asked the miner to reconnect elsewhere");
+          return;
+        }
+
         observeDifficulty(message);
 
         // Resolved before the answer is relayed, so a share is accounted for

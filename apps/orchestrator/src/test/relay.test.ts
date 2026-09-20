@@ -160,3 +160,27 @@ test("an upstream that drops takes the miner down with it", async () => {
     await harness.stop();
   }
 });
+
+test("client.reconnect is refused rather than handed to the miner", async () => {
+  const harness = await startHarness();
+  try {
+    const miner = await authorizedMiner(harness);
+
+    // A real pool sends this. Relayed, it would move the contributor onto the
+    // pool directly, still under the account this proxy authorized, and every
+    // share from then on would be earned by someone the records cannot name.
+    harness.pushFromUpstream({
+      id: null,
+      method: "client.reconnect",
+      params: ["pool.example.com", 3333, 0],
+    });
+
+    await miner.waitForClose();
+    assert.equal(
+      miner.received().some((line) => line["method"] === "client.reconnect"),
+      false,
+    );
+  } finally {
+    await harness.stop();
+  }
+});
