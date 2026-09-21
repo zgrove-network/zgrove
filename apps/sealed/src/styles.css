@@ -13,12 +13,12 @@
      brand's, and only the two figures that matter are allowed to use it. */
   --bright: #f4f4f0;
   --text: #b8b4ab;
-  --dim: #6b6760;
-  --faint: #403d38;
+  --dim: #7a756c;
+  --faint: #5a564e;
 
   --good: #8fae7e;
   --bad: #c25b4e;
-  --ring: #6b665c;
+  --ring: #7d7768;
 
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
@@ -52,7 +52,7 @@ body {
   white-space: nowrap;
 }
 .v { display: block; color: var(--text); font-variant-numeric: tabular-nums; }
-.v.big { font-size: 18px; margin-top: 4px; }
+.v.big { font-size: 20px; margin-top: 5px; color: var(--bright); }
 
 /* ---------------------------------------------------------------- shell */
 
@@ -62,7 +62,7 @@ body {
 .main-col {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(186px, auto) minmax(0, 1fr) auto;
+  grid-template-rows: minmax(232px, auto) minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--line);
@@ -110,7 +110,7 @@ body {
 .stage {
   position: relative;
   overflow: hidden;
-  padding: 30px 22px 24px;
+  padding: 34px 22px 30px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -139,13 +139,13 @@ body {
 
 .figure {
   display: block;
-  font-size: clamp(46px, 6.2vw, 78px);
+  font-size: clamp(52px, 7vw, 92px);
   line-height: 1;
   color: var(--bright);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.figure.waiting { color: #4d4a44; letter-spacing: 0.1em; }
+.figure.waiting { color: #5c5850; letter-spacing: 0.1em; }
 .figure.hit { color: var(--good); }
 .figure.mid { font-size: 26px; }
 .caret { animation: blink 1.1s steps(1, end) infinite; }
@@ -189,12 +189,20 @@ body {
 }
 .history td {
   text-align: right;
-  padding: 3px 22px;
+  padding: 5px 22px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: var(--text);
+  color: var(--dim);
 }
-.history td.dim { color: var(--dim); }
+/* What the eye runs down. Everything else in the row is context for it. */
+.history td:last-child { color: var(--text); }
+.history td:nth-child(2) { color: var(--text); }
+.history td.dim { color: #55514a; }
+.history td.good { color: var(--good); }
+.history td.bad { color: var(--bad); }
+/* A rule every fifth round, so forty of them are countable rather than a
+   single grey field. */
+.history tbody tr:nth-child(5n) td { border-bottom: 1px solid var(--line-soft); }
 .history th:first-child, .history td:first-child { text-align: left; }
 .history tbody tr:hover td { background: var(--panel); }
 .fresh td { animation: land 1100ms ease-out; }
@@ -236,8 +244,8 @@ body {
   font-variant-numeric: tabular-nums;
   padding: 0;
 }
-.box input::placeholder { color: #322f2b; }
-.unit { color: var(--faint); font-size: 11px; letter-spacing: 0.12em; }
+.box input::placeholder { color: #45413b; }
+.unit { color: var(--dim); font-size: 11px; letter-spacing: 0.12em; }
 
 .quick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
 .quick button { padding: 6px 10px; min-height: 40px; text-align: left; }

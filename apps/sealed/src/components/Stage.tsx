@@ -5,6 +5,7 @@ import { Rings } from "./Rings";
 
 interface Props {
   readonly rounds: readonly Round[];
+  readonly typical: number;
   readonly open: boolean;
   readonly left: number;
   readonly bids: number;
@@ -12,7 +13,7 @@ interface Props {
   readonly foundBlock: boolean;
 }
 
-export function Stage({ rounds, open, left, bids, pot, foundBlock }: Props) {
+export function Stage({ rounds, typical, open, left, bids, pot, foundBlock }: Props) {
   const settled = useSettle(pot === null ? null : zec(pot));
 
   const mm = String(Math.floor(left / 60)).padStart(2, "0");
@@ -52,9 +53,14 @@ export function Stage({ rounds, open, left, bids, pot, foundBlock }: Props) {
           <span className="v big">{SLOTS}</span>
         </div>
 
+        {/* A dash sat here for most of every round. While the box is shut the
+            useful number in its place is what a slot has usually been worth,
+            which is the figure you price against. */}
         <div className="cell">
-          <span className="k">per slot</span>
-          <span className="v big">{pot === null ? "—" : zec(pot / SLOTS)}</span>
+          <span className="k">{pot === null ? "typical" : "per slot"}</span>
+          <span className="v big">
+            {pot === null ? zec(typical) : zec(pot / SLOTS)}
+          </span>
         </div>
 
         <div className="cell clock-cell">

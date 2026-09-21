@@ -49,7 +49,7 @@ export function Rings({ rounds }: { readonly rounds: readonly Round[] }) {
               r={r}
               stroke={round.foundBlock ? "var(--good)" : "var(--ring)"}
               strokeWidth={width}
-              opacity={round.foundBlock ? 0.3 : 0.17}
+              opacity={round.foundBlock ? 0.42 : 0.24}
             />
           );
         })}
