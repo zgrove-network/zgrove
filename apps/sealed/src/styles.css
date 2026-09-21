@@ -61,7 +61,7 @@ body {
 .main-col {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(264px, 0.85fr) minmax(0, 1fr);
+  grid-template-rows: minmax(264px, 0.85fr) minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--line);
@@ -326,25 +326,38 @@ button.ghost:hover { color: var(--bright); border-color: var(--line); }
 
 /* ------------------------------------------------------------ statusbar */
 
+/* Inside the main column, not across the whole window. Spanning it put a
+   second vertical division a hundred pixels from the rail's, and two
+   misaligned splits stacked on each other is what made the bottom look
+   unresolved. The rail now runs top to bottom uninterrupted.
+
+   Two rows rather than two columns: a caption line carrying the figures, and
+   the chart beneath it at full width. Side by side they ended at different
+   heights and left the right half looking unfinished. */
 .statusbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 4ch;
-  padding: 14px 20px;
+  gap: 12px;
+  padding: 14px 40px 18px;
   background: var(--panel);
   border-top: 1px solid var(--line);
 }
 
-.status-chart { display: grid; gap: 8px; }
+.status-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 4ch;
+}
 
-.spark { display: flex; align-items: flex-end; gap: 2px; height: 40px; }
+.status-figures { display: flex; flex-wrap: wrap; gap: 6px 3ch; margin: 0; }
+.status-figures > div { display: flex; align-items: baseline; gap: 1ch; }
+.status-figures dt { color: var(--dim); }
+.status-figures dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.spark { display: flex; align-items: flex-end; gap: 2px; height: 34px; }
 .spark-bar { flex: 1 1 0; min-width: 0; background: #34322d; }
 .spark-bar.block { background: var(--good); }
-
-.status-figures { display: flex; flex-wrap: wrap; gap: 4ch; margin: 0; }
-.status-figures dt { color: var(--dim); font-size: 12px; }
-.status-figures dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
 
 /* ----------------------------------------------------------- narrow */
 
@@ -356,7 +369,7 @@ button.ghost:hover { color: var(--bright); border-color: var(--line); }
   .rail { border-top: 1px solid var(--line); }
   .stage { padding: 28px 20px; gap: 28px; }
   .history { max-height: 60vh; }
-  .statusbar { grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .statusbar { padding-left: 20px; padding-right: 20px; }
 }
 
 @media (max-width: 560px) {

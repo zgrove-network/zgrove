@@ -32,6 +32,7 @@ export default function App() {
             foundBlock={state.foundBlock}
           />
           <History rounds={state.history} />
+          <StatusBar rounds={state.history} stats={stats} />
         </div>
 
         <aside className="rail">
@@ -51,8 +52,6 @@ export default function App() {
           />
         </aside>
       </main>
-
-      <StatusBar rounds={state.history} stats={stats} />
     </div>
   );
 }

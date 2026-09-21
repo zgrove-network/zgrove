@@ -10,37 +10,38 @@ interface Props {
 export function StatusBar({ rounds, stats }: Props) {
   return (
     <footer className="statusbar">
-      <div className="status-chart">
-        <Sparkline rounds={rounds} />
+      <div className="status-head">
         <span className="dim">
-          last {stats.counted} rounds, log scale — tall ones are blocks
+          last {stats.counted} rounds · value of one slot · log scale
         </span>
+
+        <dl className="status-figures">
+          <div>
+            <dt>typical</dt>
+            <dd>{zec(stats.typical)}</dd>
+          </div>
+          <div>
+            <dt>average</dt>
+            <dd>{zec(stats.average)}</dd>
+          </div>
+          <div>
+            <dt>slot cost</dt>
+            <dd>{zec(stats.cost)}</dd>
+          </div>
+          <div>
+            <dt>best</dt>
+            <dd className="good">{zec(stats.best)}</dd>
+          </div>
+          <div>
+            <dt>near-empty</dt>
+            <dd>
+              {stats.empty}/{stats.counted}
+            </dd>
+          </div>
+        </dl>
       </div>
 
-      <dl className="status-figures">
-        <div>
-          <dt>typical</dt>
-          <dd>{zec(stats.typical)}</dd>
-        </div>
-        <div>
-          <dt>average</dt>
-          <dd>{zec(stats.average)}</dd>
-        </div>
-        <div>
-          <dt>cost of a slot</dt>
-          <dd>{zec(stats.cost)}</dd>
-        </div>
-        <div>
-          <dt>best</dt>
-          <dd className="good">{zec(stats.best)}</dd>
-        </div>
-        <div>
-          <dt>near-empty</dt>
-          <dd>
-            {stats.empty}/{stats.counted}
-          </dd>
-        </div>
-      </dl>
+      <Sparkline rounds={rounds} />
     </footer>
   );
 }
