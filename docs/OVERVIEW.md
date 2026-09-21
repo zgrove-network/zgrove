@@ -19,7 +19,7 @@ That last part is the product. Everything else is table stakes.
  ┌────────────────────────────────────────┐
  │ zgrove-orchestrator                    │
  │  - stratum proxy   (share accounting)  │  <- source of truth
- │  - control plane   (ws: assign, hb)    │
+ │  - control plane   (attestation, hb)   │
  │  - switcher        (profitability)     │
  │  - anti-cheat      (withholding, fake hashrate)
  └──────────┬─────────────────────────────┘
@@ -34,22 +34,30 @@ That last part is the product. Everything else is table stakes.
  └────────────────────────────────────────┘
 ```
 
-**Topology decision:** v1 does NOT run coin nodes or build block templates.
-It is a stratum proxy plus an accounting layer in front of existing upstream
-pools. We own attribution; upstream owns consensus. Running our own pool
-(own nodes, own templates, orphan risk, variance) is a later phase and is
-explicitly out of scope until volume justifies it.
+## The topology decision
+
+v1 does **not** run coin nodes or build block templates. It is a stratum proxy
+plus an accounting layer in front of existing upstream pools. We own
+attribution; upstream owns consensus.
+
+Running our own pool — own nodes, own templates, orphan risk, variance — is a
+later phase and is out of scope until volume justifies it. The reasoning, and
+what would have to change to revisit it, is in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Stack
 
 - TypeScript, Node 20+
-- Orchestrator: plain TCP server (`node:net`) for stratum, `socket.io` for the
-  control plane
+- Orchestrator: plain TCP server (`node:net`) for stratum; HTTP for the
+  attestation handshake, with a persistent control-plane connection to follow
+  when assignment and heartbeat need one
 - DB: SQLite via `better-sqlite3` (single writer, WAL). Postgres later if needed.
-- Web/dashboard: Next.js (App Router) — **not in milestone 1**
+- Web/dashboard: Next.js (App Router) — not built yet
 - Payouts: `zcashd` RPC, `z_sendmany` to Orchard/Sapling addresses
 
 ## Ground rules
+
+These are not style preferences. Each one exists because breaking it costs a
+contributor money or privacy.
 
 - Share accounting is the source of truth for payouts. It must be derived from
   what the **upstream pool accepted**, never from what a worker claims.
@@ -67,27 +75,12 @@ explicitly out of scope until volume justifies it.
 
 ```
 apps/
-  orchestrator/     stratum proxy + control plane + accounting
+  orchestrator/     stratum proxy + control plane + accounting + CLI
   worker/           the contributor agent
 packages/
-  protocol/         shared types: stratum messages, control-plane messages
+  protocol/         shared types: stratum, attestation, control plane
   db/               schema + migrations + query helpers
+docs/
+  OVERVIEW.md       this file
+  ARCHITECTURE.md   the decisions made under these rules, and why
 ```
-
-## Milestone 1 — the only thing that matters right now
-
-One worker connects, mines a single algorithm through the proxy to one upstream
-pool, and every accepted share lands in the database attributed to that worker.
-
-Done means:
-- `apps/orchestrator` accepts stratum TCP connections
-- worker identity is parsed from the stratum login (`user.workerName`)
-- the proxy maintains an upstream connection and relays both directions
-- `mining.submit` responses from upstream are matched to the submitting worker
-  and recorded as accepted or rejected
-- shares are rolled into 5-minute buckets in SQLite
-- a `zgrove stats` CLI prints per-worker accepted/rejected counts and est. hashrate
-- integration test: a fake upstream pool + a fake miner, asserting the accounting
-
-Not in milestone 1: multi-algo, switching, benchmarking, anti-cheat, payouts,
-web UI, tokens, auth.

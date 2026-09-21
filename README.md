@@ -4,8 +4,11 @@ Distributed mining pool for Zcash. Contributors mine on their own hardware and
 are paid in ZEC to shielded addresses, so no participant's earnings are visible
 on-chain.
 
-See `CLAUDE.md` for the architecture, the topology decision behind v1, and the
-ground rules that govern share accounting and payouts.
+[docs/OVERVIEW.md](docs/OVERVIEW.md) has the architecture, the topology
+decision behind v1, and the ground rules that govern share accounting and
+payouts. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the decisions made
+under those rules: how a worker proves who it is, what stake does and does not
+buy, and what a fake looks like.
 
 ## Layout
 

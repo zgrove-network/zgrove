@@ -8,6 +8,10 @@ data/
 *.sqlite-wal
 *.sqlite-shm
 
+# Local assistant instructions, not project documentation. The project's own
+# rules live in docs/OVERVIEW.md.
+CLAUDE.md
+
 # Wallet keys and pool credentials never enter the repo.
 .env
 .env.*
