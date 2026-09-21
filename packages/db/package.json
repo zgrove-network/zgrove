@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@zgrove/protocol": "workspace:*",
-    "better-sqlite3": "^13.0.3"
+    "better-sqlite3": "^12.11.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
