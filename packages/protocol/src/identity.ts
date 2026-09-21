@@ -22,7 +22,11 @@ export type IdentityRejection =
   | "empty-username"
   | "empty-worker-name"
   /** The login was a session token, and it is not live. */
-  | "unknown-token";
+  | "unknown-token"
+  /** A plain name was sent and this deployment does not accept them. */
+  | "legacy-login-disabled"
+  /** The account has enrolled keys, so its name alone no longer claims it. */
+  | "account-requires-attestation";
 
 export type ParsedLogin =
   | { readonly ok: true; readonly identity: WorkerIdentity }

@@ -3,18 +3,13 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { createAccounting, createRegistry, migrate, openDatabase } from "@zgrove/db";
-import {
-  isSessionToken,
-  isStratumRequest,
-  parseWorkerLogin,
-  type ParsedLogin,
-  type WorkerIdentity,
-} from "@zgrove/protocol";
+import { isStratumRequest, type WorkerIdentity } from "@zgrove/protocol";
 
 import { loadConfig } from "./config.js";
 import { createChallengeStore } from "./control/challenges.js";
 import { createControlServer } from "./control/server.js";
 import { createSessionStore } from "./control/sessions.js";
+import { createLoginResolver } from "./login.js";
 import { log } from "./log.js";
 import { createSession, type Session } from "./session.js";
 import { createStratumServer, type MinerConnection } from "./server.js";
@@ -39,30 +34,6 @@ const workerSessions = createSessionStore({
   maxSessions: config.control.maxSessions,
 });
 
-/**
- * A login is either a live session token, which names a worker that proved
- * itself, or a plain name, which names one that merely claimed to be. The
- * second path stays until workers are on the control plane and then goes.
- */
-function resolveLogin(raw: unknown): ParsedLogin {
-  if (typeof raw === "string" && isSessionToken(raw)) {
-    const session = workerSessions.resolve(raw, Math.floor(Date.now() / 1000));
-    if (session === null) {
-      return { ok: false, reason: "unknown-token" };
-    }
-    return {
-      ok: true,
-      identity: {
-        username: session.accountId,
-        workerName: session.workerName,
-        login: `${session.accountId}.${session.workerName}`,
-      },
-    };
-  }
-
-  return parseWorkerLogin(raw);
-}
-
 // One upsert per worker rather than one per share. The row id is stable, and
 // how recently a worker was active is already readable from its buckets.
 const workerIds = new Map<string, number>();
@@ -76,6 +47,19 @@ function workerIdFor(identity: WorkerIdentity): number {
   const id = accounting.touchWorker(identity, Math.floor(Date.now() / 1000));
   workerIds.set(identity.login, id);
   return id;
+}
+
+const resolveLogin = createLoginResolver({
+  sessions: workerSessions,
+  registry,
+  allowLegacyLogin: config.control.allowLegacyLogin,
+  now: () => Math.floor(Date.now() / 1000),
+});
+
+if (config.control.allowLegacyLogin) {
+  log("warn", "login.legacy_enabled", {
+    note: "plain-name logins are accepted; turn this off once workers attest",
+  });
 }
 
 const sessions = new Map<number, Session>();

@@ -27,6 +27,8 @@ export interface Registry {
   /** Idempotent for the same key and account; refuses to move a key. */
   registerWorkerKey(registration: RegisterWorkerKey): WorkerKeyBinding;
   findWorkerKey(publicKey: string): WorkerKeyBinding | null;
+  /** True when the account has enrolled at least one rig key. */
+  hasEnrolledKeys(accountId: string): boolean;
   touchWorkerKey(publicKey: string, atSeconds: number): void;
 }
 
@@ -73,6 +75,10 @@ export function createRegistry(db: Db): Registry {
     JOIN workers w ON w.id = k.worker_id
     WHERE k.public_key = ?
   `);
+
+  const countKeys = db.prepare<[string], { n: number }>(
+    "SELECT COUNT(*) AS n FROM worker_keys WHERE account_id = ?",
+  );
 
   const touchKey = db.prepare(
     "UPDATE worker_keys SET last_seen_at = ? WHERE public_key = ?",
@@ -144,6 +150,10 @@ export function createRegistry(db: Db): Registry {
             workerId: row.worker_id,
             workerName: row.worker_name,
           };
+    },
+
+    hasEnrolledKeys(accountId) {
+      return (countKeys.get(accountId)?.n ?? 0) > 0;
     },
 
     touchWorkerKey(publicKey, atSeconds) {

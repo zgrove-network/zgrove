@@ -13,6 +13,8 @@ export interface AccountingConfig {
 }
 
 export interface ControlConfig {
+  /** Plain-name logins. Off unless a deployment is mid-migration. */
+  readonly allowLegacyLogin: boolean;
   readonly server: ControlServerOptions;
   readonly challengeTtlSeconds: number;
   readonly maxOutstandingChallenges: number;
@@ -71,6 +73,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): OrchestratorConfig {
           "127.0.0.1",
         stratumPort: readNumber(env, "ZGROVE_STRATUM_PORT", 3333),
       },
+      allowLegacyLogin: env["ZGROVE_ALLOW_LEGACY_LOGIN"] === "true",
       challengeTtlSeconds: readNumber(env, "ZGROVE_CHALLENGE_TTL_SECONDS", 60),
       maxOutstandingChallenges: readNumber(env, "ZGROVE_MAX_CHALLENGES", 1024),
       sessionTtlSeconds: readNumber(env, "ZGROVE_SESSION_TTL_SECONDS", 3600),
