@@ -1,90 +1,97 @@
 export default function Home() {
   return (
     <div className="page">
-      <div className="head">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/mark.svg" alt="" />
-        <span>zgrove.network</span>
-      </div>
+      <p className="bar">
+        <b>zgrove</b> — a mining pool that cannot see you · zgrove.network
+      </p>
 
       <h1>Mine to a shielded address.</h1>
 
-      <p className="stand">
-        The pool is told an account that is not yours, and you are paid in
-        shielded ZEC. Neither step leaves a public record of what you earned.
+      <p className="i dim">
+        The pool is told an account that is not yours.
+        <br />
+        You are paid in shielded ZEC.
+        <br />
+        Neither step leaves a public record of what you earned.
+      </p>
+
+      <hr />
+
+      <h2>the problem</h2>
+
+      <p>
+        A mining payout address is on-chain forever. Anyone who finds it reads
+        the whole history off it: how much you make, since when, roughly how
+        large the rig is.
       </p>
 
       <p>
-        Every other corner of crypto has privacy tools. The part where the money
-        arrives has none. A mining payout address sits on-chain forever, and
-        anyone who finds it reads the whole history off it — how much, since
-        when, and roughly how large the rig is. That is not one pool&rsquo;s
-        flaw. A pool has to pay you somewhere, and the only somewhere it knows
-        is transparent.
+        No pool chose this. A pool has to pay you somewhere and the only
+        somewhere it knows is transparent.
       </p>
 
-      <h2>What sits in the middle</h2>
+      <h2>what sits in the middle</h2>
 
       <p>
-        A stratum proxy. Your miner connects to it rather than to the pool, and
-        it connects onward under an account of its own. The pool sees one
-        account doing all the work and never learns there was anyone behind it.
+        A stratum proxy. Your miner connects to it, it connects onward under an
+        account of its own.
       </p>
 
-      <pre className="out">
-{`miner sends      mining.authorize ["`}<b>{`you`}</b>{`.rig1", "x"]
-pool receives    mining.authorize ["`}<b>{`the pool's own account`}</b>{`", "x"]
+      <pre>
+{`your miner sends
+  mining.authorize ["`}<b>you</b>{`.rig1", "x"]
 
-$ grep -c '`}<b>{`you`}</b>{`' everything-the-pool-received.txt
-`}<span className="zero">0</span>
+the pool receives
+  mining.authorize ["`}<b>pool-account</b>{`", "x"]
+
+$ grep -c '`}<b>you</b>{`' everything-the-pool-received.txt
+`}<b className="good">0</b>
       </pre>
 
       <p>
-        Who earned what is settled here, from what the upstream pool accepted
-        and never from what a worker claims. Once a month that ledger becomes
-        one shielded payment, so the amount any single contributor received
-        exists in no public record at all.
+        Who earned what is settled here, from what the upstream pool accepted.
+        Never from what a worker claims. Once a month that becomes one shielded
+        payment.
       </p>
 
-      <h2>How you check it</h2>
+      <h2>how you check it</h2>
 
       <p>
-        Each payout round publishes the transaction that carried it, the number
-        of accounts paid, and a commitment to the amounts. Anyone can confirm
-        the transaction is real. Each contributor can confirm their own amount
-        is inside the commitment. Nobody learns anyone else&rsquo;s.
+        Every round publishes its transaction, the number of accounts paid, and
+        a commitment to the amounts. Anyone confirms the transaction is real.
+        You confirm your own amount is inside the commitment. Nobody sees
+        anyone else&apos;s.
       </p>
 
       <p>
-        The receipt also prints what it does <em>not</em> establish. Shielded
-        transactions hide amounts, so the stated total is not something the
-        chain confirms, and proving your own inclusion is not proof that nobody
-        was left out. A receipt that implied more than it shows would be worth
-        less than none.
+        The receipt prints what it does <em>not</em> establish. Shielded
+        transactions hide amounts, so the total is not confirmed by the chain,
+        and your own inclusion is not proof that nobody was left out.
       </p>
 
-      <h2>Where this is</h2>
+      <h2>status</h2>
 
-      <p>
-        The proxy runs against real pools today; identity, accounting, payout
-        rounds and receipts are built and tested. No money has moved through it
-        yet, so there is no receipt to show — and there will not be an invented
-        one.
-      </p>
+      <pre>
+{`proxy against real pools    `}<b className="good">working</b>{`
+identity, accounting        `}<b className="good">working</b>{`
+payout rounds, receipts     `}<b className="good">built, tested</b>{`
+money actually moved        `}<b className="bad">not yet</b>
+      </pre>
 
       <p className="dim">
-        Shielded ZEC is awkward to sell, because most exchanges take transparent
-        addresses only and cashing out means un-shielding first. So this is
-        worth a great deal to someone who accumulates and close to nothing to
-        someone who sells each month. Mining is also not always worth doing at
-        all; <a href="/calculator/">the calculator</a> puts power cost beside
-        revenue and will say so.
+        There is no receipt to show until there is. There will not be an
+        invented one.
       </p>
 
-      <div className="foot">
-        <span>zgrove.network</span>
-        <a href="/calculator/">calculator</a>
-      </div>
+      <hr />
+
+      <p className="dim">
+        Shielded ZEC is awkward to sell — most exchanges take transparent
+        addresses only — so this is worth a lot if you accumulate and little if
+        you sell every month. Mining is also not always worth doing:{" "}
+        <a href="/calculator/">the calculator</a> puts power cost beside revenue
+        and will say so.
+      </p>
     </div>
   );
 }

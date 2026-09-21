@@ -12,15 +12,13 @@ export default async function CalculatorPage() {
 
   return (
     <div className="page">
-      <div className="head">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/mark.svg" alt="" />
-        <span>zgrove.network</span>
-      </div>
+      <p className="bar">
+        <b>zgrove</b> — <a href="/">back</a> · zgrove.network
+      </p>
 
       <h1>Should you even be mining?</h1>
 
-      <p className="stand">
+      <p className="i dim">
         Most calculators show what a card earns and stop there. That is half the
         arithmetic and it is the half that flatters. Here is both halves, for
         your card and your electricity.
@@ -35,9 +33,7 @@ export default async function CalculatorPage() {
         benchmarks — your miner&rsquo;s own reading beats any table.
       </p>
 
-      <div className="foot">
-        <a href="/">back</a>
-      </div>
+
     </div>
   );
 }
