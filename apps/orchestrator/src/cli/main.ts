@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { ACCOUNT_USAGE, ENROLL_USAGE, runAccount, runEnroll } from "./enroll.js";
+import { PROBE_USAGE, runProbe } from "./probe.js";
 import { runStats } from "./stats.js";
 
 const USAGE = `zgrove — operator commands for the orchestrator
@@ -7,6 +8,7 @@ const USAGE = `zgrove — operator commands for the orchestrator
   zgrove stats [options]     per-worker share accounting
   zgrove account [options]   create a contributor account
   zgrove enroll [options]    bind a rig's key to an account
+  zgrove probe [options]     learn a real pool's dialect without mining
 
 Run a command with --help for its options.
 `;
@@ -20,7 +22,7 @@ function help(argv: readonly string[], usage: string): number | null {
   return 0;
 }
 
-function main(argv: readonly string[]): number {
+async function main(argv: readonly string[]): Promise<number> {
   const [command, ...rest] = argv;
 
   switch (command) {
@@ -30,6 +32,8 @@ function main(argv: readonly string[]): number {
       return help(rest, ACCOUNT_USAGE) ?? runAccount(rest, process.env);
     case "enroll":
       return help(rest, ENROLL_USAGE) ?? runEnroll(rest, process.env);
+    case "probe":
+      return help(rest, PROBE_USAGE) ?? runProbe(rest);
     case undefined:
     case "--help":
     case "-h":
@@ -43,7 +47,7 @@ function main(argv: readonly string[]): number {
 }
 
 try {
-  process.exitCode = main(process.argv.slice(2));
+  process.exitCode = await main(process.argv.slice(2));
 } catch (error) {
   // An operator at a terminal wants the sentence, not the stack.
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
