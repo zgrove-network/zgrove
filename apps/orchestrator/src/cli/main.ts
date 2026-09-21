@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { ACCOUNT_USAGE, ENROLL_USAGE, runAccount, runEnroll } from "./enroll.js";
+import { INIT_USAGE, runInit } from "./init.js";
 import { PAYOUT_USAGE, runPayout } from "./payout.js";
 import { PROBE_USAGE, runProbe } from "./probe.js";
 import { RECEIPT_USAGE, runReceipt } from "./receipt.js";
@@ -8,6 +9,7 @@ import { runStats } from "./stats.js";
 
 const USAGE = `zgrove — operator commands for the orchestrator
 
+  zgrove init [options]      prepare a checkout to be started
   zgrove stats [options]     per-worker share accounting
   zgrove account [options]   create a contributor account
   zgrove enroll [options]    bind a rig's key to an account
@@ -32,6 +34,8 @@ async function main(argv: readonly string[]): Promise<number> {
   const [command, ...rest] = argv;
 
   switch (command) {
+    case "init":
+      return help(rest, INIT_USAGE) ?? runInit(rest, process.env);
     case "stats":
       return runStats(rest, process.env);
     case "account":
