@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor the project claims to support, and the version it is
+        # developed on. A break that only shows on one of them is exactly
+        # what this matrix is for.
+        node: ["20", "24"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      # better-sqlite3 is native. Where no prebuild matches it compiles here,
+      # which is slow but is also the install a contributor would do.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r typecheck
+
+      # Builds first because the suites run against dist, and because a
+      # package that typechecks can still fail to emit.
+      - run: pnpm -r build
+
+      - run: pnpm -r --if-present test
