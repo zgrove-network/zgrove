@@ -83,6 +83,13 @@ money actually moved        `}<b className="bad">not yet</b>
         invented one.
       </p>
 
+      <p className="dim">
+        Separately, and built out of nothing yet:{" "}
+        <a href="/sealed/">a sealed-bid auction over each block</a>, where
+        contributors sell the luck and someone else buys it. That page is a
+        simulation and says so on itself.
+      </p>
+
       <hr />
 
       <p className="dim">
