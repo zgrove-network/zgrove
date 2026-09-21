@@ -30,6 +30,27 @@ dashboard reflects it. Watching the chain beats reading a table — which is the
 shape of a real edge, and the reason the book is worth sealing: you can act on
 what you saw without announcing it.
 
+## Timing
+
+There is no betting window and no closing bell, because a position does not
+choose its round. You broadcast a memo whenever you like; the chain decides
+which block carries it; it settles on the block after that one.
+
+```
+broadcast     memo sent
+carried by    block C          <- the chain picked this, not you
+settles on    block C+1        <- does not exist yet
+```
+
+Two things fall out of that. The block a bet settles on had not been mined
+when the bet was written down, so nobody — bettor, house or miner — can have
+seen the result. And last-second sniping is impossible, because nobody picks
+which block their memo lands in.
+
+One round per block: about 48 an hour, against a Polymarket market that runs
+for weeks. The cost is that you do not know which round you have joined until
+your memo lands.
+
 ## What is real and what is not
 
 **Real:** every block, every interval, and who took it. Miners are read from

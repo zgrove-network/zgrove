@@ -33,10 +33,24 @@ export interface Share {
   readonly share: number;
 }
 
+/** A position does not choose its round. The memo is broadcast, the chain
+ * decides which block carries it, and it settles on the block after that one.
+ *
+ * This is what makes the timing honest without a betting window: the block
+ * your bet settles on does not exist yet when your bet is written down, so
+ * nobody — you, the house, or a miner — can have seen the result. It also
+ * kills last-second sniping outright, because nobody picks which block their
+ * memo lands in. */
+export type Stage = "sent" | "confirmed";
+
 export interface Position {
-  readonly height: number;
   readonly miner: string;
   readonly stake: number;
+  readonly stage: Stage;
+  /** Block the memo landed in. Null while it is still in flight. */
+  readonly confirmedIn: number | null;
+  /** Block this settles on: one after the memo's. Null until confirmed. */
+  readonly target: number | null;
 }
 
 export interface Round {

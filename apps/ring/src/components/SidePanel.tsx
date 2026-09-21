@@ -32,21 +32,44 @@ export function SidePanel({ position, shares, rounds, picked, onPick, onTake }: 
   const valid = Number.isFinite(typed) && typed > 0 && picked !== null;
 
   if (position !== null) {
+    const flying = position.stage === "sent";
     return (
       <section className="panel">
         <h2>position</h2>
         <div className="box sealed-box">
           <span className="figure mid">{label(position.miner)}</span>
         </div>
+
+        {/* Three states, and the middle one is the point: the chain, not the
+            bettor, decided which round this joined. */}
+        <ol className="steps">
+          <li className="done">
+            <span className="step-k">broadcast</span>
+            <span className="step-v">memo sent</span>
+          </li>
+          <li className={flying ? "now" : "done"}>
+            <span className="step-k">carried by</span>
+            <span className="step-v">
+              {flying
+                ? "waiting for a block"
+                : `block ${position.confirmedIn?.toLocaleString("en-US") ?? "—"}`}
+            </span>
+          </li>
+          <li className={flying ? undefined : "now"}>
+            <span className="step-k">settles on</span>
+            <span className="step-v">
+              {flying
+                ? "the block after that"
+                : `block ${position.target?.toLocaleString("en-US") ?? "—"}`}
+            </span>
+          </li>
+        </ol>
+
         <dl className="rows">
           <dt>stake</dt>
           <dd className="bright">{signed(position.stake).slice(1)}</dd>
-          <dt>on block</dt>
-          <dd>{position.height.toLocaleString("en-US")}</dd>
           <dt>state</dt>
           <dd className="live">sealed</dd>
-          <dt>memo</dt>
-          <dd>zs1q…8f4c</dd>
         </dl>
       </section>
     );

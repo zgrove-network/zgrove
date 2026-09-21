@@ -86,8 +86,24 @@ export function useMarket() {
       .sort((a, b) => a.height - b.height);
 
     for (const block of landed) {
-      const mine =
-        positionRef.current?.height === block.height ? positionRef.current : null;
+      const held = positionRef.current;
+
+      // A memo in flight is carried by this block, which fixes the round it
+      // bets on: the next one, which does not exist yet.
+      if (held !== null && held.stage === "sent") {
+        const confirmed: Position = {
+          ...held,
+          stage: "confirmed",
+          confirmedIn: block.height,
+          target: block.height + 1,
+        };
+        setPosition(confirmed);
+        positionRef.current = confirmed;
+      }
+
+      const mine = held !== null && held.stage === "confirmed" && held.target === block.height
+        ? held
+        : null;
       const round = settle(block, outcomeOf(block, listed), poolsRef.current, mine);
 
       setRounds((prev) => [round, ...prev].slice(0, 40));
@@ -142,14 +158,10 @@ export function useMarket() {
 
   const shares = useMemo(() => sharesOver(blocks), [blocks]);
 
-  const take = useCallback(
-    (miner: string, stake: number) => {
-      const newest = blocks[0];
-      if (newest === undefined) return;
-      setPosition({ height: newest.height + 1, miner, stake });
-    },
-    [blocks],
-  );
+  /** Broadcasts the memo. Which round it joins is not ours to say. */
+  const take = useCallback((miner: string, stake: number) => {
+    setPosition({ miner, stake, stage: "sent", confirmedIn: null, target: null });
+  }, []);
 
   const state: MarketState = {
     source,

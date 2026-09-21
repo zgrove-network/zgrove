@@ -407,4 +407,33 @@ button.ghost:hover { color: var(--bright); border-color: var(--line); }
 }
 .share-row.lit .share-name { color: var(--good); }
 
+/* The three states a position passes through. The middle one carries the
+   whole integrity argument, so it gets a line of its own rather than a word
+   in a table. */
+.steps { list-style: none; margin: 14px 0 16px; padding: 0; display: grid; gap: 1px; }
+.steps li {
+  display: flex;
+  justify-content: space-between;
+  gap: 2ch;
+  padding: 6px 0 6px 14px;
+  border-left: 1px solid var(--line);
+  position: relative;
+}
+.steps li::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: 12px;
+  width: 5px;
+  height: 5px;
+  background: var(--line);
+}
+.steps li.done::before { background: var(--dim); }
+.steps li.now::before { background: var(--good); }
+.steps li.now { border-left-color: var(--good); }
+.step-k { font-size: 11px; color: var(--faint); }
+.steps li.now .step-k { color: var(--dim); }
+.step-v { color: var(--dim); font-family: var(--mono); font-size: 12px; }
+.steps li.now .step-v { color: var(--bright); }
+
 .history .empty { margin: 0; padding: 22px; color: var(--dim); }
