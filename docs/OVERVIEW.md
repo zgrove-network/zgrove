@@ -51,7 +51,9 @@ what would have to change to revisit it, is in [ARCHITECTURE.md](ARCHITECTURE.md
   attestation handshake, with a persistent control-plane connection to follow
   when assignment and heartbeat need one
 - DB: SQLite via `better-sqlite3` (single writer, WAL). Postgres later if needed.
-- Web/dashboard: Next.js (App Router) — not built yet
+- Web: Next.js (App Router), exported static. It holds no secrets and
+  reaches nothing private, so it can sit anywhere and stay up when the pool
+  does not.
 - Payouts: `zebrad` for the chain and `zallet` for the wallet, `z_sendmany`
   to Orchard/Sapling addresses. `zcashd` reached its end-of-support halt on
   2026-07-18 and refuses to start.
@@ -79,6 +81,7 @@ contributor money or privacy.
 apps/
   orchestrator/     stratum proxy + control plane + accounting + CLI
   worker/           the contributor agent
+  web/              the public site: landing, calculator, receipts
 packages/
   protocol/         shared types: stratum, attestation, control plane
   db/               schema + migrations + query helpers
