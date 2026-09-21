@@ -37,7 +37,7 @@ export function Calculator({ coins }: { coins: readonly Coin[] }) {
   }
 
   return (
-    <div className="panel">
+    <div>
       <div className="grid">
         <div>
           <label htmlFor="card">Card</label>

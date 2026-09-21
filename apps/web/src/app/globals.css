@@ -1,135 +1,126 @@
-/* Taken from the brand assets rather than chosen: the banner's background,
-   the light and dark tones of the tree rings in it, and its off-white. */
+/* Sampled from the brand assets, not chosen. */
 :root {
   --bg: #0f0e0f;
-  --text: #f2f0ec;
-  --dim: #8a877f;
-  --line: #33322e;
-  --ring: #77746f;
+  --text: #e8e5df;
+  --dim: #7e7a72;
+  --line: #2a2926;
   --bad: #c25b4e;
   --good: #7a9a6b;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * { box-sizing: border-box; }
-
 html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 17px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); }
-a:hover { border-bottom-color: var(--ring); }
-
-/* The rings sit behind the first screen and fade out, the way they do on the
-   banner: present at the edge, never competing with the sentence. */
-.hero {
-  position: relative;
-  overflow: hidden;
-  border-bottom: 1px solid var(--line);
+/* A document, not a landing page: one narrow measure, everything hanging off
+   the same left edge, nothing centred and nothing in a card. */
+.page {
+  max-width: 660px;
+  margin: 0;
+  padding: 64px 28px 120px;
 }
 
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: -20% -8% -20% 42%;
-  background: url("/rings.jpg") right center / cover no-repeat;
-  opacity: 0.42;
-  mask-image: linear-gradient(to right, transparent, #000 70%);
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 70%);
-  pointer-events: none;
+@media (min-width: 900px) {
+  .page { margin-left: 13vw; }
 }
 
-.hero-inner {
-  position: relative;
-  z-index: 1;
-  max-width: 820px;
-  margin: 0 auto;
-  padding: 96px 24px 104px;
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  margin-bottom: 64px;
+  color: var(--dim);
+  font: 12px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-
-.mark { width: 30px; height: auto; color: var(--text); display: block; margin-bottom: 40px; }
+.head img { width: 15px; height: auto; color: var(--dim); position: relative; top: 3px; }
 
 h1 {
   font-family: var(--serif);
   font-weight: 500;
-  font-size: clamp(2.4rem, 6vw, 3.6rem);
-  line-height: 1.08;
+  font-size: clamp(2rem, 5vw, 2.7rem);
+  line-height: 1.12;
   letter-spacing: -0.015em;
-  margin: 0 0 22px;
+  margin: 0 0 28px;
 }
 
-.sub { font-size: 1.15rem; color: var(--dim); max-width: 46ch; margin: 0; }
+.stand {
+  font-size: 1.05rem;
+  color: var(--text);
+  margin: 0 0 44px;
+}
 
-main { max-width: 820px; margin: 0 auto; padding: 0 24px 120px; }
+p { margin: 0 0 18px; }
+.dim { color: var(--dim); }
 
 h2 {
-  font-family: var(--serif);
-  font-weight: 500;
-  font-size: 1.6rem;
-  letter-spacing: -0.01em;
-  margin: 72px 0 18px;
+  font: 12px var(--mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dim);
+  font-weight: 400;
+  margin: 52px 0 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
-p { margin: 0 0 20px; max-width: 62ch; }
-.dim { color: var(--dim); }
-.small { font-size: 0.9rem; }
+a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); }
+a:hover { border-bottom-color: var(--dim); }
 
-ul { max-width: 62ch; padding-left: 20px; }
-li { margin-bottom: 10px; }
-
-.rule { border: 0; border-top: 1px solid var(--line); margin: 0; }
-
-.terminal {
-  background: #0a0a0a;
-  max-width: 62ch;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 18px 20px;
-  font: 13px/1.75 var(--mono);
+/* The proof. No border, no radius — it is output, not a widget. */
+pre.out {
+  font: 12.5px/1.8 var(--mono);
   color: var(--dim);
+  margin: 24px 0 26px;
+  padding: 0 0 0 16px;
+  border-left: 1px solid var(--line);
   overflow-x: auto;
   white-space: pre;
-  margin: 0 0 20px;
 }
-.terminal b { color: var(--text); font-weight: 500; }
+pre.out b { color: var(--text); font-weight: 500; }
+pre.out .zero { color: var(--good); font-weight: 500; }
 
 .foot {
+  margin-top: 72px;
+  padding-top: 18px;
   border-top: 1px solid var(--line);
   color: var(--dim);
-  font-size: 0.875rem;
-  padding: 28px 24px 60px;
-  max-width: 820px;
-  margin: 0 auto;
+  font: 12px var(--mono);
+  letter-spacing: 0.06em;
   display: flex;
-  gap: 22px;
+  gap: 20px;
   flex-wrap: wrap;
 }
 
-/* Calculator, on its own page rather than in the way of the sentence. */
-label { display: block; font-size: 0.78rem; color: var(--dim); margin-bottom: 6px; letter-spacing: 0.02em; }
+/* Calculator page */
+label { display: block; font: 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
 input, select {
   width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--line);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
   color: var(--text);
-  border-radius: 6px;
-  padding: 9px 11px;
+  padding: 7px 2px;
   font: 15px var(--mono);
+  border-radius: 0;
 }
-.panel { border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
-.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-table { width: 100%; border-collapse: collapse; font: 13.5px var(--mono); margin-top: 20px; }
-th { text-align: right; color: var(--dim); font-weight: 400; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+input:focus, select:focus { outline: none; border-bottom-color: var(--dim); }
+.grid { display: grid; gap: 20px 24px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom: 8px; }
+table { width: 100%; border-collapse: collapse; font: 13px var(--mono); margin-top: 32px; }
+th { text-align: right; color: var(--dim); font-weight: 400; padding: 7px 6px; border-bottom: 1px solid var(--line); }
 th:first-child, td:first-child { text-align: left; }
 td { text-align: right; padding: 11px 6px; border-bottom: 1px solid var(--line); }
 .good { color: var(--good); }
 .bad { color: var(--bad); }
-.verdict { margin-top: 20px; padding: 15px 17px; border-radius: 8px; border: 1px solid var(--line); }
-.verdict.no { border-color: var(--bad); }
-.verdict.yes { border-color: var(--good); }
+.verdict { margin-top: 26px; padding-left: 16px; border-left: 2px solid var(--line); }
+.verdict.no { border-left-color: var(--bad); }
+.verdict.yes { border-left-color: var(--good); }
