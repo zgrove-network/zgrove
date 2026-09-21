@@ -156,6 +156,11 @@ that inside the artifact is the point — a proof that implies more than it
 shows is worse than no proof, and it is the specific failure this project
 watched somebody else ship.
 
+A receipt states how the money left. A send this pool made and watched
+complete, and one an operator made by hand against a transaction id checked on
+chain, are not the same evidence, and a reader is entitled to know which one
+they are holding.
+
 It does not go on Solana. Publishing a record of Zcash payout activity next to
 a Solana token identity links the two, which is the same leak as letting stake
 influence payout share, arriving through a different door.

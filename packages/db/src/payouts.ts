@@ -311,6 +311,8 @@ export interface RecordedRound {
   readonly operationId: string | null;
   readonly txid: string | null;
   readonly fromAddress: string | null;
+  /** How the money left: through this process, or by hand. */
+  readonly settlement: "wallet" | "external" | null;
   readonly entries: readonly RecordedEntry[];
 }
 
@@ -329,14 +331,16 @@ export interface Dispatch {
    */
   begin(roundId: number, fromAddress: string, atSeconds: number): boolean;
   recordOperation(roundId: number, operationId: string): void;
-  complete(roundId: number, txid: string): void;
+  complete(roundId: number, txid: string, settlement?: "wallet" | "external"): void;
+  /** Records a payment made outside this process, after it was verified. */
+  settleExternally(roundId: number, txid: string, atSeconds: number): boolean;
   fail(roundId: number): void;
 }
 
 export function createDispatch(db: Db): Dispatch {
   const selectRound = db.prepare<[number], RoundRow>(`
     SELECT id, period_start, period_end, total_zat, total_weight,
-           dispatch_state, operation_id, txid, from_address
+           dispatch_state, operation_id, txid, from_address, settlement
     FROM payout_rounds WHERE id = ?
   `);
 
@@ -358,8 +362,18 @@ export function createDispatch(db: Db): Dispatch {
     "UPDATE payout_rounds SET operation_id = ? WHERE id = ?",
   );
   const setSent = db.prepare(
-    "UPDATE payout_rounds SET dispatch_state = 'sent', txid = ?, state = 'sent' WHERE id = ?",
+    "UPDATE payout_rounds SET dispatch_state = 'sent', txid = ?, state = 'sent', settlement = ? WHERE id = ?",
   );
+
+  // Conditional on the round still being planned, for the same reason the
+  // wallet path is: a round settled twice is a round paid twice, and the
+  // second payment is as unrecallable as the first.
+  const setExternal = db.prepare(`
+    UPDATE payout_rounds
+    SET dispatch_state = 'sent', state = 'sent', settlement = 'external',
+        txid = ?, dispatched_at = ?
+    WHERE id = ? AND dispatch_state = 'planned'
+  `);
   const setFailed = db.prepare(
     "UPDATE payout_rounds SET dispatch_state = 'failed' WHERE id = ?",
   );
@@ -381,6 +395,7 @@ export function createDispatch(db: Db): Dispatch {
         operationId: row.operation_id,
         txid: row.txid,
         fromAddress: row.from_address,
+        settlement: row.settlement,
         entries: selectEntries.all(roundId).map((entry) => ({
           accountId: entry.account_id,
           payoutAddress: entry.payout_address,
@@ -398,8 +413,12 @@ export function createDispatch(db: Db): Dispatch {
       setOperation.run(operationId, roundId);
     },
 
-    complete(roundId, txid) {
-      setSent.run(txid, roundId);
+    complete(roundId, txid, settlement = "wallet") {
+      setSent.run(txid, settlement, roundId);
+    },
+
+    settleExternally(roundId, txid, atSeconds) {
+      return setExternal.run(txid, atSeconds, roundId).changes === 1;
     },
 
     fail(roundId) {
@@ -418,6 +437,7 @@ interface RoundRow {
   readonly operation_id: string | null;
   readonly txid: string | null;
   readonly from_address: string | null;
+  readonly settlement: "wallet" | "external" | null;
 }
 
 interface EntryRow {

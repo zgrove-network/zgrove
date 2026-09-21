@@ -60,6 +60,7 @@ export function runReceipt(argv: readonly string[], env: NodeJS.ProcessEnv): num
       accountsPaid: entries.length,
       totalZat: entries.reduce((sum, entry) => sum + entry.amountZat, 0),
       txid: round.txid,
+      settlement: round.settlement ?? "wallet",
       commitment: merkleRoot(entries),
       issuedAt: Math.floor(Date.now() / 1000),
       limits: RECEIPT_LIMITS,

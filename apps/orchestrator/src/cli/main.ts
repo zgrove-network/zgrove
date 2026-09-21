@@ -6,6 +6,7 @@ import { PAYOUT_USAGE, runPayout } from "./payout.js";
 import { PROBE_USAGE, runProbe } from "./probe.js";
 import { RECEIPT_USAGE, runReceipt } from "./receipt.js";
 import { SEND_USAGE, runSend } from "./send.js";
+import { SETTLE_USAGE, runSettle } from "./settle.js";
 import { runStats } from "./stats.js";
 
 const USAGE = `zgrove — operator commands for the orchestrator
@@ -18,6 +19,7 @@ const USAGE = `zgrove — operator commands for the orchestrator
   zgrove probe [options]     learn a real pool's dialect without mining
   zgrove payout [options]    work out what each account is owed (sends nothing)
   zgrove send [options]      pay a recorded round (dry run unless --confirm)
+  zgrove settle [options]    record a round paid by hand, after checking the chain
   zgrove receipt [options]   the verifiable artifact for a round that was paid
 
 Run a command with --help for its options.
@@ -52,6 +54,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return help(rest, PAYOUT_USAGE) ?? runPayout(rest, process.env);
     case "send":
       return help(rest, SEND_USAGE) ?? runSend(rest, process.env);
+    case "settle":
+      return help(rest, SETTLE_USAGE) ?? runSettle(rest, process.env);
     case "receipt":
       return help(rest, RECEIPT_USAGE) ?? runReceipt(rest, process.env);
     case undefined:

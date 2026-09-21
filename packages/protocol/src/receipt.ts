@@ -31,6 +31,13 @@ export interface PayoutReceipt {
   readonly totalZat: number;
   /** The Zcash transaction that carried the payment. */
   readonly txid: string;
+  /**
+   * How the money left: "wallet" is a send this pool made and watched
+   * complete, "external" is one an operator made by hand and then recorded
+   * against a transaction checked on chain. Stated because the two are not
+   * the same evidence and a reader is entitled to know which one they have.
+   */
+  readonly settlement: "wallet" | "external";
   /** Merkle root over the paid entries, hex. */
   readonly commitment: string;
   readonly issuedAt: number;

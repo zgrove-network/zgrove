@@ -286,3 +286,30 @@ test("a round that pays nobody is refused rather than sent empty", async () => {
   );
   db.close();
 });
+
+test("a round settled by hand is recorded as settled by hand", () => {
+  const { db, dispatch, roundId } = seeded();
+
+  assert.equal(dispatch.settleExternally(roundId, "abc123", DAY), true);
+
+  const after = dispatch.load(roundId);
+  assert.equal(after?.dispatchState, "sent");
+  assert.equal(after?.txid, "abc123");
+
+  // A hand-made payment and one this process watched complete are different
+  // evidence, and a receipt that blurred them would overstate the weaker one.
+  assert.equal(after?.settlement, "external");
+  db.close();
+});
+
+test("a round cannot be settled twice, or settled after being sent", () => {
+  const { db, dispatch, roundId } = seeded();
+
+  assert.equal(dispatch.settleExternally(roundId, "abc123", DAY), true);
+
+  // Shielded ZEC cannot be recalled, so a second settlement has to be refused
+  // by the same conditional claim the wallet path uses.
+  assert.equal(dispatch.settleExternally(roundId, "def456", DAY), false);
+  assert.equal(dispatch.load(roundId)?.txid, "abc123");
+  db.close();
+});

@@ -54,6 +54,18 @@ token to point a miner at. Set `ZGROVE_MINER_COMMAND` and `ZGROVE_MINER_ARGS`
 (a JSON array, where `{host}`, `{port}` and `{token}` are filled in) to have
 the agent launch the miner itself.
 
+## Paying a round
+
+    zgrove payout --from 2026-09-01 --to 2026-10-01 --total <ZEC> --record
+    zgrove send   --round 1 --confirm      # through zallet
+    zgrove receipt --round 1
+
+Without a synced node there is a second path: pay the round from a light
+wallet by hand, then record it. The transaction id is checked against the
+chain and refused if it does not exist or carries nothing shielded.
+
+    zgrove settle --round 1 --txid <hex> --confirm
+
 ## Status
 
 One worker mines a single algorithm through the proxy to one upstream pool,
