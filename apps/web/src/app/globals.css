@@ -78,28 +78,56 @@ th, td { text-align: right; padding: 3px 2ch 3px 0; }
 th:first-child, td:first-child { text-align: left; padding-right: 3ch; }
 th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
 
-/* sealed box — a board somebody uses, not a document about a board. The page
-   runs wider than the prose column because it is a screen, and the vocabulary
-   stays what the rest of the site established: dashed rules, monospace,
-   hierarchy from indentation. */
-.page.wide { max-width: 112ch; }
+/* sealed box — one application frame divided into regions, not a column of
+   floating panels. Left is what you watch, right is what you do, underneath
+   is what you consult. The frame is dashed because that is this site's rule
+   for a boundary; it is one frame because this is one screen. */
+.page.wide { max-width: 118ch; }
 .narrow { max-width: 74ch; }
 
-.simline { color: var(--dim); margin: 0 0 22px; }
-.simline b { color: var(--bad); font-weight: 400; }
+.app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38ch;
+  grid-template-areas:
+    "head  head"
+    "stage rail"
+    "strip strip";
+  border: 1px dashed #2a2926;
+  margin: 26px 0 26px;
+}
 
-.board { border: 1px dashed #2a2926; padding: 18px 3ch 22px; margin: 0 0 20px; }
-.boardline { display: flex; flex-wrap: wrap; gap: 2px 4ch; color: var(--dim); }
-.boardline b { color: var(--text); font-weight: 400; }
+.app-head {
+  grid-area: head;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 3ch;
+  padding: 11px 3ch 12px;
+  border-bottom: 1px dashed #2a2926;
+  color: var(--dim);
+}
+.app-head .name { color: var(--bright); }
+.app-head b { color: var(--bad); font-weight: 400; }
+.app-head .end { margin-left: auto; }
 
-/* The two numbers that matter face each other: what cannot be known, and how
-   long until it is. Nothing else on the page comes near this size. */
-.stage { display: flex; align-items: flex-end; gap: 4ch; margin: 26px 0 0; }
-.stage > div { min-width: 0; }
-.stage-fill { flex-grow: 1; }
+/* The stage. The box and the clock sit in the middle of it with room around
+   them, because they are the only things on the page worth staring at. */
+.app-stage {
+  grid-area: stage;
+  border-right: 1px dashed #2a2926;
+  padding: 18px 3ch 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+}
+.stage-meta, .stage-foot { display: flex; flex-wrap: wrap; gap: 2px 4ch; color: var(--dim); }
+.stage-meta b, .stage-foot b { color: var(--text); font-weight: 400; }
+.stage-mid { flex-grow: 1; display: flex; align-items: center; gap: 4ch; margin: 24px 0; }
+.stage-mid > div { min-width: 0; }
+.stage-box { flex-grow: 1; }
 
 .figure {
-  font-size: clamp(38px, 6.4vw, 64px);
+  font-size: clamp(38px, 5.6vw, 64px);
   line-height: 1;
   color: var(--bright);
   font-variant-numeric: tabular-nums;
@@ -107,7 +135,6 @@ th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
 }
 .figure.waiting { color: #4b4944; letter-spacing: 0.08em; }
 .figure.hit { color: var(--good); }
-.figure.small { font-size: 32px; margin-top: 4px; }
 .caret { animation: blink 1.1s steps(1, end) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -116,7 +143,7 @@ th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
 .under b { color: var(--bright); font-weight: 400; }
 
 .clock {
-  font-size: clamp(30px, 4.6vw, 44px);
+  font-size: clamp(28px, 4vw, 42px);
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -124,45 +151,51 @@ th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
 }
 .clock.soon { color: var(--bad); }
 
-/* The two things a bidder needs side by side: what a number would have done,
-   and what the going rate has been. */
-.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(42ch, 100%), 1fr)); gap: 20px; margin-bottom: 20px; }
-.panel { border: 1px dashed #2a2926; padding: 16px 3ch 20px; }
-.panel h3 { font-size: 14px; font-weight: 400; color: var(--bright); margin: 0 0 14px; }
-.panel h3::before { content: "## "; color: var(--dim); }
-.panel p { margin: 12px 0 0; }
+/* The rail. One column of things you do, ending in what it has cost you. */
+.app-rail { grid-area: rail; display: flex; flex-direction: column; }
+.rail { padding: 18px 3ch 20px; }
+.rail + .rail { border-top: 1px dashed #2a2926; }
+.rail:last-child { margin-top: auto; }
+.rail h3 { font-size: 14px; font-weight: 400; color: var(--bright); margin: 0 0 14px; }
+.rail h3::before { content: "## "; color: var(--dim); }
+.rail p { margin: 12px 0 0; }
 
-.bidrow { display: flex; flex-wrap: wrap; gap: 12px 2ch; align-items: center; }
-.bidrow input { width: 14ch; flex-grow: 1; font-size: 18px; }
+.amount { display: flex; align-items: baseline; gap: 1ch; }
+.amount input { font-size: 26px; width: 100%; min-width: 0; padding: 2px 0 6px; }
+.amount span { color: var(--dim); }
 
-.reading { margin-top: 16px; min-height: 6.8em; }
-.reading b { font-weight: 400; }
-
-.chips { display: flex; flex-wrap: wrap; gap: 1ch; margin-top: 4px; }
-.chips button { font-size: 13px; padding: 8px 2ch; color: var(--dim); }
+.chips { display: grid; grid-template-columns: 1fr 1fr; gap: 1ch; margin-top: 12px; }
+.chips button { font-size: 13px; padding: 7px 1ch; min-height: 38px; color: var(--dim); }
 .chips button:hover { color: var(--text); }
 
-/* Bars rather than block characters: forty of those clip at any size big
-   enough to read, and these scale to whatever width the panel gets. */
-.chart { display: flex; align-items: flex-end; gap: 2px; height: 66px; }
+.reading { margin-top: 16px; min-height: 7.5em; }
+.reading b { font-weight: 400; }
+
+.seal { width: 100%; margin-top: 4px; }
+
+.ledger { display: grid; grid-template-columns: 1fr auto; gap: 2px 3ch; }
+.ledger > span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* The strip. History and the numbers derived from it, across the bottom. */
+.app-strip {
+  grid-area: strip;
+  border-top: 1px dashed #2a2926;
+  padding: 18px 3ch 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 22px 4ch;
+  align-items: start;
+}
+.strip-head { display: flex; flex-wrap: wrap; gap: 2px 3ch; color: var(--dim); margin-bottom: 14px; }
+.strip-head .name { color: var(--bright); }
+
+.chart { display: flex; align-items: flex-end; gap: 2px; height: 74px; }
 .chart-bar { flex: 1 1 0; min-width: 0; background: #33322e; }
 .chart-bar.found { background: var(--good); }
-.chart-note { margin-top: 12px !important; }
 
-.kv { display: grid; grid-template-columns: 1fr auto; gap: 0 3ch; margin-top: 18px; }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 2px 3ch; }
 .kv > span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
-
-.you {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 4ch;
-  border: 1px dashed #2a2926;
-  padding: 12px 3ch;
-  color: var(--dim);
-  margin-bottom: 8px;
-}
-.you b { font-weight: 400; }
-.you-end { margin-left: auto; }
+.kv-note { margin: 12px 0 0; }
 
 button {
   background: transparent;
@@ -170,36 +203,41 @@ button {
   border: 1px solid #33322e;
   border-radius: 0;
   font: inherit;
-  padding: 9px 3ch;
+  padding: 10px 3ch;
   min-height: 44px;
   cursor: pointer;
 }
 button:hover { color: var(--bright); border-color: var(--dim); }
 button:disabled { color: #4b4944; border-color: #26251f; cursor: default; }
 
-.linkish {
-  border: 0; padding: 0; min-height: 0;
-  color: var(--text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: var(--dim);
-}
+.linkish { border: 0; padding: 0; min-height: 0; color: var(--text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--dim); }
 .linkish:hover { border: 0; }
 
 /* Five columns of figures do not fit a phone, and shrinking them to fit makes
    the one thing worth reading unreadable. It scrolls instead. */
 .scroller { overflow-x: auto; }
-table.wide { margin-left: 0; width: 100%; min-width: 60ch; max-width: 92ch; }
-/* The settled row arrives lit and cools into the table. */
+table.wide { margin-left: 0; width: 100%; min-width: 60ch; }
 .fresh td { animation: land 1s ease-out; }
 @keyframes land { from { color: var(--bright); } }
 
 .brightish { color: var(--bright); }
 
-@media (max-width: 660px) {
-  .stage { flex-direction: column; align-items: stretch; gap: 18px; }
+/* Below this the rail cannot hold a readable measure beside the stage, so the
+   regions stack in the order they are used: watch, act, consult. */
+@media (max-width: 940px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "stage" "rail" "strip";
+  }
+  .app-stage { border-right: 0; border-bottom: 1px dashed #2a2926; min-height: 0; }
+  .app-rail .rail:first-child { border-top: 0; }
+  .rail:last-child { margin-top: 0; }
+  .app-strip { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .stage-mid { flex-direction: column; align-items: stretch; gap: 18px; }
   .clock, .under.right { text-align: left; }
-  .you-end { margin-left: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

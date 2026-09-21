@@ -199,207 +199,228 @@ export function SealedBox() {
 
   return (
     <div className="sealed">
-      <p className="simline">
-        <b>simulation</b> — no chain, no pool, no money, and nothing here has
-        happened. The clock runs {SPEED}&times;; a real round is one Zcash
-        block, {ROUND_SECONDS} seconds.
-      </p>
+      <div className="app">
+        <header className="app-head">
+          <span className="name">sealed box</span>
+          <span>
+            <b>simulation</b> — no chain, no pool, no money, nothing here has
+            happened
+          </span>
+          <span className="end">
+            clock {SPEED}&times; ·{" "}
+            <button type="button" className="linkish" onClick={() => setRunning((r) => !r)}>
+              {running ? "pause" : "resume"}
+            </button>
+          </span>
+        </header>
 
-      <div className="board">
-        <div className="boardline">
-          <span>
-            round <b>{live.round}</b>
-          </span>
-          <span>
-            block <b>{live.block.toLocaleString("en-US")}</b>
-          </span>
-          <span>
-            <b>{SLOTS}</b> slots
-          </span>
-          <span>
-            <b>{live.bids}</b> bids in, amounts hidden from everyone
-          </span>
-        </div>
+        <main className="app-stage">
+          <div className="stage-meta">
+            <span>
+              round <b>{live.round}</b>
+            </span>
+            <span>
+              block <b>{live.block.toLocaleString("en-US")}</b>
+            </span>
+          </div>
 
-        <div className="stage">
-          <div className="stage-fill">
-            {live.open ? (
+          <div className="stage-mid">
+            <div className="stage-box">
+              {live.open ? (
+                <>
+                  <div className="figure waiting">
+                    ???
+                    <span className="caret" aria-hidden="true">
+                      _
+                    </span>
+                  </div>
+                  <div className="under">in the box — sealed until the block closes</div>
+                </>
+              ) : (
+                <>
+                  <div className={live.foundBlock ? "figure hit" : "figure"}>
+                    {shownPot} ZEC
+                  </div>
+                  <div className="under">
+                    <b>{zec((live.pot ?? 0) / SLOTS)}</b> per slot —{" "}
+                    {live.foundBlock ? "the pool found a block" : "a quiet round"}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div>
+              <div className={closingSoon ? "clock soon" : "clock"}>
+                {live.open ? `${mm}:${ss}` : "00:00"}
+              </div>
+              <div className="under right">
+                {live.open ? "until it opens" : "opened"}
+              </div>
+            </div>
+          </div>
+
+          <div className="stage-foot">
+            <span>
+              <b>{SLOTS}</b> slots
+            </span>
+            <span>
+              <b>{live.bids}</b> bids in
+            </span>
+            <span>amounts hidden from everyone, us included</span>
+          </div>
+        </main>
+
+        <aside className="app-rail">
+          <div className="rail">
+            <h3>your bid</h3>
+
+            {live.open && bid === null ? (
               <>
-                <div className="figure waiting">
-                  ???
-                  <span className="caret" aria-hidden="true">
-                    _
-                  </span>
+                <div className="amount">
+                  <input
+                    id="bid"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.0000"
+                    aria-label="your bid in ZEC"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") seal();
+                    }}
+                  />
+                  <span>ZEC</span>
                 </div>
-                <div className="under">in the box — sealed until the block closes</div>
+
+                <div className="chips">
+                  <button type="button" onClick={() => setDraft(zec(stats.avgClearing))}>
+                    {zec(stats.avgClearing)} usual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDraft(zec(stats.avgClearing * 1.5))}
+                  >
+                    {zec(stats.avgClearing * 1.5)} safe
+                  </button>
+                </div>
+
+                <div className="reading">
+                  {odds === null || backtested === null ? (
+                    <span className="dim">
+                      Type an amount and this will say how often it would have
+                      taken a slot, and what bidding it every round would have
+                      come to.
+                    </span>
+                  ) : (
+                    <>
+                      <div>
+                        takes a slot in{" "}
+                        <b className={odds.hits > odds.of / 2 ? "good" : "bad"}>
+                          {odds.hits} of the last {odds.of}
+                        </b>{" "}
+                        rounds
+                      </div>
+                      <div className="dim">
+                        bidding this every round over those {odds.of} would have
+                        come to{" "}
+                        <span className={backtested >= 0 ? "good" : "bad"}>
+                          {signed(backtested)}
+                        </span>{" "}
+                        ZEC — which turns almost entirely on whether a block
+                        landed in them
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <button type="button" className="seal" onClick={seal} disabled={!valid}>
+                  seal and send
+                </button>
               </>
+            ) : bid === null ? (
+              <p className="dim">
+                You sat this round out. The next one opens in a moment.
+              </p>
             ) : (
               <>
-                <div className={live.foundBlock ? "figure hit" : "figure"}>
-                  {shownPot} ZEC
+                <div className="amount">
+                  <span className="brightish" style={{ fontSize: 26 }}>
+                    {zec(bid)}
+                  </span>
+                  <span>ZEC</span>
                 </div>
                 <div className="under">
-                  <b>{zec((live.pot ?? 0) / SLOTS)}</b> per slot —{" "}
-                  {live.foundBlock ? "the pool found a block" : "a quiet round"}
+                  {live.open ? "sealed — read when the block closes" : "opened"}
                 </div>
+                <p className="dim">
+                  memo zs1q…8f4c · block {live.block.toLocaleString("en-US")} ·
+                  one shielded transaction, encrypted on arrival, no second
+                  phase
+                </p>
               </>
             )}
           </div>
 
+          <div className="rail">
+            <h3>you</h3>
+            <div className="ledger">
+              <span className="dim">balance</span>
+              <span className="brightish">{zec(live.balance)}</span>
+              <span className="dim">this session</span>
+              <span className={live.session >= 0 ? "good" : "bad"}>
+                {signed(live.session)}
+              </span>
+              <span className="dim">slots taken</span>
+              <span>
+                {live.slotsWon}/{live.played}
+              </span>
+            </div>
+          </div>
+        </aside>
+
+        <section className="app-strip">
           <div>
-            <div className={closingSoon ? "clock soon" : "clock"}>
-              {live.open ? `${mm}:${ss}` : "00:00"}
+            <div className="strip-head">
+              <span className="name">the last {stats.counted} rounds</span>
+              <span>what one slot was worth, oldest to newest</span>
             </div>
-            <div className="under right">
-              {live.open ? "until it opens" : "opened"}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="panels">
-        <section className="panel">
-          <h3>your bid</h3>
-
-          {live.open && bid === null ? (
-            <>
-              <div className="bidrow">
-                <input
-                  id="bid"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0.0000"
-                  aria-label="your bid in ZEC"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") seal();
-                  }}
+            <div className="chart" aria-hidden="true">
+              {chart.map((bar, i) => (
+                <span
+                  key={i}
+                  className={bar.found ? "chart-bar found" : "chart-bar"}
+                  style={{ height: `${bar.height}%` }}
                 />
-                <button type="button" onClick={seal} disabled={!valid}>
-                  seal and send
-                </button>
-              </div>
-
-              <div className="reading">
-                {odds === null || backtested === null ? (
-                  <span className="dim">
-                    Type an amount and this will say how often it would have
-                    taken a slot.
-                  </span>
-                ) : (
-                  <>
-                    <div>
-                      takes a slot in{" "}
-                      <b className={odds.hits > odds.of / 2 ? "good" : "bad"}>
-                        {odds.hits} of the last {odds.of}
-                      </b>{" "}
-                      rounds
-                    </div>
-                    <div className="dim">
-                      bidding this every round over those {odds.of} would have
-                      come to{" "}
-                      <span className={backtested >= 0 ? "good" : "bad"}>
-                        {signed(backtested)}
-                      </span>{" "}
-                      ZEC — which turns almost entirely on whether a block
-                      landed in them
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="chips">
-                <button type="button" onClick={() => setDraft(zec(stats.avgClearing))}>
-                  {zec(stats.avgClearing)} going rate
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDraft(zec(stats.avgClearing * 1.5))}
-                >
-                  {zec(stats.avgClearing * 1.5)} safer
-                </button>
-              </div>
-            </>
-          ) : bid === null ? (
-            <p className="dim">
-              You sat this round out. The next one opens in a moment.
+              ))}
+            </div>
+            <p className="dim kv-note">
+              log scale — a found block is two hundred times a quiet round and
+              would flatten everything else. The tall ones are blocks.
             </p>
-          ) : (
-            <>
-              <div className="figure small">{zec(bid)} ZEC</div>
-              <div className="under">
-                {live.open ? "sealed — read when the block closes" : "opened"}
-              </div>
-              <p className="dim">
-                memo zs1q…8f4c · block {live.block.toLocaleString("en-US")} · one
-                shielded transaction, encrypted on arrival, no second phase
-              </p>
-            </>
-          )}
-        </section>
-
-        <section className="panel">
-          <h3>the last {stats.counted} rounds</h3>
-
-          <div className="chart" aria-hidden="true">
-            {chart.map((bar, i) => (
-              <span
-                key={i}
-                className={bar.found ? "chart-bar found" : "chart-bar"}
-                style={{ height: `${bar.height}%` }}
-              />
-            ))}
-          </div>
-          <p className="dim chart-note">
-            what one slot was worth, oldest to newest, log scale — the tall
-            ones are blocks
-          </p>
-
-          <div className="kv">
-            <span className="dim">typical round</span>
-            <span>{zec(stats.medPerSlot)}</span>
-            <span className="dim">average round</span>
-            <span>{zec(stats.avgPerSlot)}</span>
-            <span className="dim">cost of a slot</span>
-            <span>{zec(stats.avgClearing)}</span>
-            <span className="dim">best round</span>
-            <span className="good">{zec(stats.best)}</span>
-            <span className="dim">near-empty rounds</span>
-            <span>
-              {stats.empty} of {stats.counted}
-            </span>
           </div>
 
-          <p className="dim">
-            The average is far above the typical round because a handful of
-            blocks carry it. Most rounds you pay {zec(stats.avgClearing)} for
-            something worth {zec(stats.medPerSlot)}.
-          </p>
+          <div>
+            <div className="kv">
+              <span className="dim">typical round</span>
+              <span>{zec(stats.medPerSlot)}</span>
+              <span className="dim">average round</span>
+              <span>{zec(stats.avgPerSlot)}</span>
+              <span className="dim">cost of a slot</span>
+              <span>{zec(stats.avgClearing)}</span>
+              <span className="dim">best round</span>
+              <span className="good">{zec(stats.best)}</span>
+              <span className="dim">near-empty rounds</span>
+              <span>
+                {stats.empty} of {stats.counted}
+              </span>
+            </div>
+            <p className="dim kv-note">
+              The average sits far above the typical round because a handful of
+              blocks carry it. Most rounds you pay {zec(stats.avgClearing)} for
+              something worth {zec(stats.medPerSlot)}.
+            </p>
+          </div>
         </section>
-      </div>
-
-      <div className="you">
-        <span>
-          balance <b className="brightish">{zec(live.balance)}</b> ZEC
-        </span>
-        <span>
-          this session{" "}
-          <b className={live.session >= 0 ? "good" : "bad"}>
-            {signed(live.session)}
-          </b>
-        </span>
-        <span>
-          slots taken{" "}
-          <b>
-            {live.slotsWon}/{live.played}
-          </b>
-        </span>
-        <span className="you-end">
-          <button type="button" className="linkish" onClick={() => setRunning((r) => !r)}>
-            {running ? "pause" : "resume"}
-          </button>
-        </span>
       </div>
 
       <h2>round by round</h2>
