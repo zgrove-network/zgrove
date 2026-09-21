@@ -118,7 +118,29 @@ The last row is the honest shape of the whole table: several of these are
 answered by where this system sits rather than by anything it does, and that
 stops being true if the topology changes.
 
-## 6. Where the cut is, if we ever run our own pool
+## 6. The payout receipt
+
+A round publishes: the window, the total paid, the number of accounts paid,
+and the shielded transaction ids — or a merkle root over them, with the list
+served alongside, once a round is large enough that the ids do not fit
+anywhere convenient.
+
+Anyone can then check that the money moved: each txid is a real transaction on
+Zcash mainnet, and the amounts leaving the treasury are visible. Nobody can
+derive who received what, because the receiving ends are shielded. That is the
+whole product stated as an artifact rather than as a promise, and it is
+repeatable — one per round, rather than one certificate to point at.
+
+The receipt must carry the claim it is offered as evidence for. A receipt that
+proves only that *some* transaction happened proves the uninteresting half; it
+has to pin the amount, the window and the count, which are the parts a
+contributor would otherwise have to take on trust.
+
+It does not go on Solana. Publishing a record of Zcash payout activity next to
+a Solana token identity links the two, which is the same leak as letting stake
+influence payout share, arriving through a different door.
+
+## 7. Where the cut is, if we ever run our own pool
 
 `createSession` reaches for `dialUpstream` directly. Running our own pool
 replaces exactly that: a block template source and a share validator in place
