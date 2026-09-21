@@ -10,15 +10,17 @@ interface Props {
 export function Account({ balance, session, slotsWon, played }: Props) {
   return (
     <section className="panel account">
-      <h2>you</h2>
-      <dl className="meta wide">
+      <h2>account</h2>
+      <dl className="rows">
         <dt>balance</dt>
-        <dd className="bright">{zec(balance)} ZEC</dd>
-        <dt>this session</dt>
-        <dd className={session >= 0 ? "good" : "bad"}>{signed(session)}</dd>
-        <dt>slots taken</dt>
+        <dd className="bright">{zec(balance)}</dd>
+        <dt>session</dt>
+        <dd className={session === 0 ? undefined : session > 0 ? "good" : "bad"}>
+          {signed(session)}
+        </dd>
+        <dt>slots</dt>
         <dd>
-          {slotsWon} of {played}
+          {slotsWon}/{played}
         </dd>
       </dl>
     </section>

@@ -152,6 +152,15 @@ export function backtest(bid: number, rounds: readonly Round[]): number {
   return total;
 }
 
+/** How many of the rounds a backtest covers actually held a block. The
+ * backtest figure swings from a loss to a fortune on this number alone, and
+ * printing it beside the result says so without a sentence saying so. */
+export function blocksWithin(rounds: readonly Round[]): number {
+  let n = 0;
+  for (const r of rounds.slice(0, LOOKBACK)) if (r.foundBlock) n += 1;
+  return n;
+}
+
 /** Bar heights as percentages, log scaled, because one found block is two
  * hundred times a quiet round and a linear chart is thirty-nine flat bars
  * and a spike. */

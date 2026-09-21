@@ -14,21 +14,24 @@ export function TopBar({ round, block, speed, running, onToggle }: Props) {
       <Mark />
       <span className="wordmark">sealed box</span>
 
-      <span className="topbar-round">
-        <span className="dim">round</span> {round}
-        <span className="sep">·</span>
-        <span className="dim">block</span> {block.toLocaleString("en-US")}
+      <span className="tb">
+        <span className="k">round</span>
+        <span className="v">{round}</span>
+      </span>
+      <span className="tb">
+        <span className="k">block</span>
+        <span className="v">{block.toLocaleString("en-US")}</span>
       </span>
 
       <span className="grow" />
 
-      <span className="badge" title="nothing on this screen has happened">
-        <span className="dot" aria-hidden="true" />
-        simulation
+      <span className="badge">sim</span>
+      <span className="tb">
+        <span className="k">speed</span>
+        <span className="v">{speed}&times;</span>
       </span>
-      <span className="dim">{speed}&times;</span>
       <button type="button" className="ghost" onClick={onToggle}>
-        {running ? "pause" : "resume"}
+        {running ? "pause" : "run"}
       </button>
     </header>
   );

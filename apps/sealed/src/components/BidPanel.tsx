@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { LOOKBACK, backtest, hitRate, signed, zec } from "../lib/auction";
+import { LOOKBACK, backtest, blocksWithin, hitRate, signed, zec } from "../lib/auction";
 import type { Round, Stats } from "../lib/auction";
 
 interface Props {
@@ -21,24 +21,19 @@ export function BidPanel({ open, myBid, block, history, stats, onSeal }: Props) 
   if (myBid !== null) {
     return (
       <section className="panel">
-        <h2>your bid</h2>
-        <div className="sealed-bid">
-          <span className="amount-big">{zec(myBid)}</span>
+        <h2>bid</h2>
+        <div className="box sealed-box">
+          <span className="figure mid">{zec(myBid)}</span>
           <span className="unit">ZEC</span>
         </div>
-        <p className={open ? "state sealed" : "state"}>
-          {open ? "sealed — read when the block closes" : "opened"}
-        </p>
-        <dl className="meta">
+        <dl className="rows">
+          <dt>state</dt>
+          <dd className={open ? "live" : undefined}>{open ? "sealed" : "opened"}</dd>
           <dt>memo</dt>
           <dd>zs1q…8f4c</dd>
           <dt>block</dt>
           <dd>{block.toLocaleString("en-US")}</dd>
         </dl>
-        <p className="note">
-          One shielded transaction, encrypted the moment it lands. No hash to
-          publish now and reveal later — there is nothing left to reveal.
-        </p>
       </section>
     );
   }
@@ -46,27 +41,34 @@ export function BidPanel({ open, myBid, block, history, stats, onSeal }: Props) 
   if (!open) {
     return (
       <section className="panel">
-        <h2>your bid</h2>
-        <p className="note">You sat this round out. The next opens in a moment.</p>
+        <h2>bid</h2>
+        <div className="box empty">
+          <span className="figure mid faint">—</span>
+        </div>
+        <dl className="rows">
+          <dt>state</dt>
+          <dd>stood out</dd>
+        </dl>
       </section>
     );
   }
 
   const odds = valid ? hitRate(typed, history) : null;
   const projected = valid ? backtest(typed, history) : null;
+  const blocks = blocksWithin(history);
 
   return (
     <section className="panel">
-      <h2>your bid</h2>
+      <h2>bid</h2>
 
-      <div className="field">
+      <div className="box">
         <input
           id="bid"
           type="text"
           inputMode="decimal"
           autoComplete="off"
           placeholder="0.0000"
-          aria-label="your bid, in ZEC"
+          aria-label="bid, in ZEC"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -78,41 +80,30 @@ export function BidPanel({ open, myBid, block, history, stats, onSeal }: Props) 
 
       <div className="quick">
         <button type="button" onClick={() => setDraft(zec(stats.cost))}>
-          {zec(stats.cost)}
-          <small>usual</small>
+          <span className="k">usual</span>
+          <span className="v">{zec(stats.cost)}</span>
         </button>
         <button type="button" onClick={() => setDraft(zec(stats.cost * 1.5))}>
-          {zec(stats.cost * 1.5)}
-          <small>safer</small>
+          <span className="k">safer</span>
+          <span className="v">{zec(stats.cost * 1.5)}</span>
         </button>
       </div>
 
-      <div className="readout">
-        {odds === null || projected === null ? (
-          <p className="note">
-            Put an amount in and this says how often it would have taken a slot,
-            and what bidding it every round would have come to.
-          </p>
-        ) : (
-          <>
-            <p className="odds">
-              takes a slot in{" "}
-              <strong className={odds.hits > odds.of / 2 ? "good" : "bad"}>
-                {odds.hits} of {odds.of}
-              </strong>{" "}
-              recent rounds
-            </p>
-            <p className="note">
-              bidding it every round over those {LOOKBACK} would have come to{" "}
-              <strong className={projected >= 0 ? "good" : "bad"}>
-                {signed(projected)}
-              </strong>{" "}
-              ZEC — which turns almost entirely on whether a block landed inside
-              them
-            </p>
-          </>
-        )}
-      </div>
+      <dl className="rows">
+        <dt>fills, last {LOOKBACK}</dt>
+        <dd className={odds === null ? "faint" : odds.hits > odds.of / 2 ? "good" : "bad"}>
+          {odds === null ? "—" : `${odds.hits}/${odds.of}`}
+        </dd>
+
+        <dt>p&amp;l over them</dt>
+        <dd className={projected === null ? "faint" : projected >= 0 ? "good" : "bad"}>
+          {projected === null ? "—" : signed(projected)}
+        </dd>
+
+        {/* The p&l above swings from a loss to a fortune on this line alone. */}
+        <dt>blocks in them</dt>
+        <dd className={blocks > 0 ? "good" : undefined}>{blocks}</dd>
+      </dl>
 
       <button
         type="button"
@@ -120,7 +111,7 @@ export function BidPanel({ open, myBid, block, history, stats, onSeal }: Props) 
         disabled={!valid}
         onClick={() => onSeal(typed)}
       >
-        seal and send
+        seal
       </button>
     </section>
   );
