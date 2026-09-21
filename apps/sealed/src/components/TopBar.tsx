@@ -1,3 +1,5 @@
+import { Mark } from "./Mark";
+
 interface Props {
   readonly round: number;
   readonly block: number;
@@ -9,7 +11,7 @@ interface Props {
 export function TopBar({ round, block, speed, running, onToggle }: Props) {
   return (
     <header className="topbar">
-      <span className="mark" aria-hidden="true" />
+      <Mark />
       <span className="wordmark">sealed box</span>
 
       <span className="topbar-round">

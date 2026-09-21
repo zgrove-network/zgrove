@@ -1,7 +1,10 @@
 import { SLOTS, zec } from "../lib/auction";
+import type { Round } from "../lib/auction";
 import { useSettle } from "../hooks/useSettle";
+import { Rings } from "./Rings";
 
 interface Props {
+  readonly rounds: readonly Round[];
   readonly open: boolean;
   readonly left: number;
   readonly bids: number;
@@ -9,7 +12,7 @@ interface Props {
   readonly foundBlock: boolean;
 }
 
-export function Stage({ open, left, bids, pot, foundBlock }: Props) {
+export function Stage({ rounds, open, left, bids, pot, foundBlock }: Props) {
   const settled = useSettle(pot === null ? null : zec(pot));
 
   const mm = String(Math.floor(left / 60)).padStart(2, "0");
@@ -22,6 +25,8 @@ export function Stage({ open, left, bids, pot, foundBlock }: Props) {
 
   return (
     <section className="stage">
+      <Rings rounds={rounds} />
+
       <div className="stage-core">
         {open ? (
           <>

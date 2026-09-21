@@ -25,6 +25,7 @@ export default function App() {
       <main className="body">
         <div className="main-col">
           <Stage
+            rounds={state.history}
             open={state.phase === "open"}
             left={state.left}
             bids={state.bids}
