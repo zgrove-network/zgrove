@@ -1,7 +1,7 @@
 import type { Dispatch, RecordedRound } from "@zgrove/db";
 
 import { formatZec } from "../cli/money.js";
-import type { ShieldedRecipient, Zcashd } from "./zcashd.js";
+import type { ShieldedRecipient, Zallet } from "./zallet.js";
 
 export interface SendPlan {
   readonly round: RecordedRound;
@@ -60,8 +60,8 @@ export interface SendResult {
 }
 
 export interface SendOptions {
-  readonly minConf: number;
-  readonly fee: string | null;
+  /** Null lets zallet apply its own ZIP 315 confirmation policy. */
+  readonly minConf: number | null;
   /** How long to wait for zcashd to finish building the proofs. */
   readonly waitMs: number;
   readonly pollMs: number;
@@ -84,7 +84,7 @@ export interface SendOptions {
 export async function send(
   plan: SendPlan,
   dispatch: Dispatch,
-  zcashd: Zcashd,
+  zallet: Zallet,
   options: SendOptions,
   nowSeconds: number,
 ): Promise<SendResult> {
@@ -96,11 +96,10 @@ export async function send(
 
   let operationId: string;
   try {
-    operationId = await zcashd.sendMany(
+    operationId = await zallet.sendMany(
       plan.from,
       plan.recipients,
       options.minConf,
-      options.fee,
     );
   } catch (error) {
     // The call itself failed, so nothing is in flight and the round can be
@@ -114,9 +113,21 @@ export async function send(
 
   const deadline = Date.now() + options.waitMs;
   for (;;) {
-    const status = await zcashd.operationStatus(operationId);
+    const status = await zallet.operationStatus(operationId);
 
     if (status.status === "success" && status.txid !== null) {
+      // A successful operation is not a payment. zallet builds and records
+      // the transactions even when broadcasting is disabled, and reports that
+      // in this field; marking the round sent on the strength of an operation
+      // id would tell contributors money left when it never did.
+      if (!status.broadcast) {
+        dispatch.fail(plan.round.id);
+        throw new Error(
+          `zallet built the transactions but did not broadcast them ` +
+            `(external.broadcast is off). Operation ${operationId}. Nothing was sent.`,
+        );
+      }
+
       dispatch.complete(plan.round.id, status.txid);
       return { operationId, txid: status.txid, status: status.status };
     }
@@ -142,7 +153,7 @@ export async function send(
 export async function resume(
   round: RecordedRound,
   dispatch: Dispatch,
-  zcashd: Zcashd,
+  zallet: Zallet,
 ): Promise<SendResult> {
   if (round.dispatchState !== "sending") {
     throw new DispatchRefused(`Round ${round.id} is ${round.dispatchState}, not sending.`);
@@ -155,8 +166,8 @@ export async function resume(
     );
   }
 
-  const status = await zcashd.operationStatus(round.operationId);
-  if (status.status === "success" && status.txid !== null) {
+  const status = await zallet.operationStatus(round.operationId);
+  if (status.status === "success" && status.txid !== null && status.broadcast) {
     dispatch.complete(round.id, status.txid);
   } else if (status.status === "failed" || status.status === "cancelled") {
     dispatch.fail(round.id);

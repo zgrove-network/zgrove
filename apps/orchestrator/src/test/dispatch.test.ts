@@ -13,17 +13,21 @@ import {
 } from "@zgrove/db";
 
 import { DispatchRefused, planSend, resume, send } from "../wallet/dispatch.js";
-import type { OperationStatus, ShieldedRecipient, Zcashd } from "../wallet/zcashd.js";
+import type { OperationStatus, ShieldedRecipient, Zallet } from "../wallet/zallet.js";
 
 const DAY = Math.floor(Date.UTC(2026, 8, 20) / 1000);
 const TREASURY = "u1treasury";
 
-interface Fake extends Zcashd {
+interface Fake extends Zallet {
   readonly calls: { from: string; recipients: readonly ShieldedRecipient[] }[];
 }
 
-function fakeZcashd(
-  behaviour: { status?: OperationStatus["status"]; fail?: boolean } = {},
+function fakeZallet(
+  behaviour: {
+    status?: OperationStatus["status"];
+    fail?: boolean;
+    broadcast?: boolean;
+  } = {},
 ): Fake {
   const calls: { from: string; recipients: readonly ShieldedRecipient[] }[] = [];
   return {
@@ -31,7 +35,7 @@ function fakeZcashd(
     async sendMany(from, recipients) {
       calls.push({ from, recipients });
       if (behaviour.fail === true) {
-        throw new Error("zcashd refused the send");
+        throw new Error("zallet refused the send");
       }
       return "opid-1";
     },
@@ -40,11 +44,13 @@ function fakeZcashd(
       return {
         status,
         txid: status === "success" ? "deadbeef" : null,
+        txids: status === "success" ? ["deadbeef"] : [],
+        broadcast: behaviour.broadcast ?? true,
         error: status === "failed" ? "insufficient funds" : null,
       };
     },
-    async balance() {
-      return "1.0";
+    async balanceForAccount() {
+      return { pools: {} };
     },
   };
 }
@@ -109,13 +115,13 @@ test("the send is built from what was recorded, not recomputed", async () => {
 
 test("a successful send records the txid and closes the round", async () => {
   const { db, dispatch, roundId } = seeded();
-  const zcashd = fakeZcashd();
+  const zallet = fakeZallet();
 
   const result = await send(
     planSend(dispatch.load(roundId)!, TREASURY),
     dispatch,
-    zcashd,
-    { minConf: 10, fee: null, waitMs: 1_000, pollMs: 1 },
+    zallet,
+    { minConf: null, waitMs: 1_000, pollMs: 1 },
     DAY,
   );
 
@@ -130,38 +136,38 @@ test("a successful send records the txid and closes the round", async () => {
 
 test("a round cannot be sent twice", async () => {
   const { db, dispatch, roundId } = seeded();
-  const zcashd = fakeZcashd();
+  const zallet = fakeZallet();
 
   await send(
     planSend(dispatch.load(roundId)!, TREASURY),
     dispatch,
-    zcashd,
-    { minConf: 10, fee: null, waitMs: 1_000, pollMs: 1 },
+    zallet,
+    { minConf: null, waitMs: 1_000, pollMs: 1 },
     DAY,
   );
 
   // Shielded ZEC cannot be recalled, so the second attempt has to be refused
   // before it reaches the wallet, not after.
   assert.throws(() => planSend(dispatch.load(roundId)!, TREASURY), DispatchRefused);
-  assert.equal(zcashd.calls.length, 1);
+  assert.equal(zallet.calls.length, 1);
   db.close();
 });
 
 test("two senders racing the same round produce one send", async () => {
   const { db, dispatch, roundId } = seeded();
-  const zcashd = fakeZcashd();
+  const zallet = fakeZallet();
   const plan = planSend(dispatch.load(roundId)!, TREASURY);
 
   // Both hold a plan built while the round was still planned. The claim in
   // the UPDATE is what decides, not the plan they are holding.
-  const first = send(plan, dispatch, zcashd, { minConf: 10, fee: null, waitMs: 1_000, pollMs: 1 }, DAY);
+  const first = send(plan, dispatch, zallet, { minConf: null, waitMs: 1_000, pollMs: 1 }, DAY);
   await assert.rejects(
-    send(plan, dispatch, zcashd, { minConf: 10, fee: null, waitMs: 1_000, pollMs: 1 }, DAY),
+    send(plan, dispatch, zallet, { minConf: null, waitMs: 1_000, pollMs: 1 }, DAY),
     DispatchRefused,
   );
   await first;
 
-  assert.equal(zcashd.calls.length, 1);
+  assert.equal(zallet.calls.length, 1);
   db.close();
 });
 
@@ -172,8 +178,8 @@ test("a wallet that refuses leaves the round failed and nothing in flight", asyn
     send(
       planSend(dispatch.load(roundId)!, TREASURY),
       dispatch,
-      fakeZcashd({ fail: true }),
-      { minConf: 10, fee: null, waitMs: 1_000, pollMs: 1 },
+      fakeZallet({ fail: true }),
+      { minConf: null, waitMs: 1_000, pollMs: 1 },
       DAY,
     ),
     /refused the send/,
@@ -185,13 +191,13 @@ test("a wallet that refuses leaves the round failed and nothing in flight", asyn
 
 test("a send still building is left resumable, not lost", async () => {
   const { db, dispatch, roundId } = seeded();
-  const zcashd = fakeZcashd({ status: "executing" });
+  const zallet = fakeZallet({ status: "executing" });
 
   const result = await send(
     planSend(dispatch.load(roundId)!, TREASURY),
     dispatch,
-    zcashd,
-    { minConf: 10, fee: null, waitMs: 5, pollMs: 1 },
+    zallet,
+    { minConf: null, waitMs: 5, pollMs: 1 },
     DAY,
   );
 
@@ -201,9 +207,31 @@ test("a send still building is left resumable, not lost", async () => {
   assert.equal(stuck?.operationId, "opid-1");
 
   // The operation id is the handle that makes it recoverable.
-  const finished = await resume(stuck!, dispatch, fakeZcashd());
+  const finished = await resume(stuck!, dispatch, fakeZallet());
   assert.equal(finished.txid, "deadbeef");
   assert.equal(dispatch.load(roundId)?.dispatchState, "sent");
+  db.close();
+});
+
+test("a built but unbroadcast send is a failure, not a payment", async () => {
+  const { db, dispatch, roundId } = seeded();
+
+  // zallet records the transactions in the wallet even when broadcasting is
+  // off. The operation succeeds and hands back a txid, and the money has not
+  // moved. Believing the operation here would tell contributors otherwise.
+  await assert.rejects(
+    send(
+      planSend(dispatch.load(roundId)!, TREASURY),
+      dispatch,
+      fakeZallet({ broadcast: false }),
+      { minConf: null, waitMs: 1_000, pollMs: 1 },
+      DAY,
+    ),
+    /did not broadcast/,
+  );
+
+  assert.equal(dispatch.load(roundId)?.dispatchState, "failed");
+  assert.equal(dispatch.load(roundId)?.txid, null);
   db.close();
 });
 
@@ -214,7 +242,7 @@ test("a round stuck with no operation id is never retried on its own", async () 
   // This is the crash between claiming the round and hearing back. Whether
   // money left is unknown, so a human has to look rather than a retry guess.
   await assert.rejects(
-    resume(dispatch.load(roundId)!, dispatch, fakeZcashd()),
+    resume(dispatch.load(roundId)!, dispatch, fakeZallet()),
     /by hand/,
   );
   assert.equal(dispatch.load(roundId)?.dispatchState, "sending");

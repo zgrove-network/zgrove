@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import { createDispatch, migrate, openDatabase } from "@zgrove/db";
 
 import { planSend, resume, send } from "../wallet/dispatch.js";
-import { createZcashd } from "../wallet/zcashd.js";
+import { createZallet } from "../wallet/zallet.js";
 import { formatZec } from "./money.js";
 
 /**
@@ -26,8 +26,7 @@ export async function runSend(
       from: { type: "string" },
       confirm: { type: "boolean", default: false },
       resume: { type: "boolean", default: false },
-      "min-conf": { type: "string", default: "10" },
-      fee: { type: "string" },
+      "min-conf": { type: "string" },
     },
     allowPositionals: false,
   });
@@ -46,7 +45,7 @@ export async function runSend(
     }
 
     if (values.resume === true) {
-      const result = await resume(round, dispatch, zcashdFrom(env));
+      const result = await resume(round, dispatch, zalletFrom(env));
       process.stdout.write(
         `round ${roundId}: ${result.status}${result.txid === null ? "" : `, txid ${result.txid}`}\n`,
       );
@@ -61,7 +60,7 @@ export async function runSend(
         ` -> ${new Date(plan.round.periodEnd * 1000).toISOString().slice(0, 10)}\n` +
         `from ${plan.from}\n` +
         `paying ${plan.recipients.length} account(s), ${formatZec(plan.totalZat)} ZEC total\n\n` +
-        `z_sendmany ${JSON.stringify([plan.from, plan.recipients, Number(values["min-conf"] ?? "10")], null, 2)}\n`,
+        `z_sendmany ${JSON.stringify(values["min-conf"] === undefined ? [plan.from, plan.recipients] : [plan.from, plan.recipients, Number(values["min-conf"])], null, 2)}\n`,
     );
 
     if (values.confirm !== true) {
@@ -74,10 +73,9 @@ export async function runSend(
     const result = await send(
       plan,
       dispatch,
-      zcashdFrom(env),
+      zalletFrom(env),
       {
-        minConf: Number(values["min-conf"] ?? "10"),
-        fee: values.fee ?? null,
+        minConf: values["min-conf"] === undefined ? null : Number(values["min-conf"]),
         waitMs: 120_000,
         pollMs: 2_000,
       },
@@ -98,11 +96,11 @@ export async function runSend(
   }
 }
 
-function zcashdFrom(env: NodeJS.ProcessEnv) {
-  return createZcashd({
-    url: required(env["ZGROVE_ZCASHD_URL"], "ZGROVE_ZCASHD_URL"),
-    user: required(env["ZGROVE_ZCASHD_USER"], "ZGROVE_ZCASHD_USER"),
-    password: required(env["ZGROVE_ZCASHD_PASSWORD"], "ZGROVE_ZCASHD_PASSWORD"),
+function zalletFrom(env: NodeJS.ProcessEnv) {
+  return createZallet({
+    url: required(env["ZGROVE_ZALLET_URL"], "ZGROVE_ZALLET_URL"),
+    user: required(env["ZGROVE_ZALLET_USER"], "ZGROVE_ZALLET_USER"),
+    password: required(env["ZGROVE_ZALLET_PASSWORD"], "ZGROVE_ZALLET_PASSWORD"),
     timeoutMs: 30_000,
   });
 }
@@ -120,11 +118,11 @@ export const SEND_USAGE = `zgrove send — pay a recorded round
   --from <addr>    treasury address to send from (or ZGROVE_TREASURY_ADDRESS)
   --confirm        actually send; without this it is a dry run
   --resume         finish a round whose operation was still running
-  --min-conf <n>   minimum confirmations on the inputs (default 10)
-  --fee <ZEC>      explicit fee; omitted lets zcashd choose
+  --min-conf <n>   minimum confirmations; omitted uses zallet's ZIP 315 policy
   --db <path>      accounting database
 
-Needs ZGROVE_ZCASHD_URL, ZGROVE_ZCASHD_USER and ZGROVE_ZCASHD_PASSWORD.
+Needs ZGROVE_ZALLET_URL, ZGROVE_ZALLET_USER and ZGROVE_ZALLET_PASSWORD.
+Fees are ZIP 317 and chosen by the wallet; there is no fee option.
 
 The amounts are whatever "zgrove payout --record" wrote down. This command
 never recomputes them, so what goes out is what was reviewed. A send cannot be

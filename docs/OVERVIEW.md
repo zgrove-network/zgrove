@@ -30,7 +30,7 @@ That last part is the product. Everything else is table stakes.
             v
  ┌────────────────────────────────────────┐
  │ treasury: coin -> ZEC, monthly         │
- │ shielded payout via z_sendmany         │
+ │ shielded payout via zallet z_sendmany  │
  └────────────────────────────────────────┘
 ```
 
@@ -52,7 +52,9 @@ what would have to change to revisit it, is in [ARCHITECTURE.md](ARCHITECTURE.md
   when assignment and heartbeat need one
 - DB: SQLite via `better-sqlite3` (single writer, WAL). Postgres later if needed.
 - Web/dashboard: Next.js (App Router) — not built yet
-- Payouts: `zcashd` RPC, `z_sendmany` to Orchard/Sapling addresses
+- Payouts: `zebrad` for the chain and `zallet` for the wallet, `z_sendmany`
+  to Orchard/Sapling addresses. `zcashd` reached its end-of-support halt on
+  2026-07-18 and refuses to start.
 
 ## Ground rules
 
