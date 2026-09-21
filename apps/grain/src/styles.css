@@ -18,7 +18,10 @@
 
   --good: #8fae7e;
   --bad: #c25b4e;
-  --ring: #7d7768;
+  /* Sampled from the banner: its rings run a warm bone grey with no hue
+     in them at all, median #807c74, lit edges around #b1aa9f. */
+  --ring: #807c74;
+  --ring-lit: #b1aa9f;
 
   /* Two faces with two jobs. Monospace is for data and nothing else, so a
      figure is the only thing on the screen set in it and reads as a figure

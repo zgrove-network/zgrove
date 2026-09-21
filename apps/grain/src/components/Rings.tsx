@@ -1,65 +1,23 @@
 import type { Round } from "../lib/auction";
 
-/** The brand's key visual is a cross-section of a trunk. Rings are not
- * decoration here: one ring is one settled round, oldest at the heart and the
- * newest at the bark, the way a trunk actually grows.
+/** The brand's key visual is a cross-section of a trunk: rings crowding the
+ * right edge and thinning away to the left. A ring is a year — a record of
+ * time a tree keeps whether or not anybody reads it.
  *
- * Two things the first version got wrong. It drew perfect concentric circles
- * at even spacing, which is a radar sweep rather than wood. And it marked the
- * rounds that found a block in green — no trunk has a green ring, and the
- * colour read as an interface accent sitting on a texture.
+ * So these are not decoration. One ring is one settled round, oldest at the
+ * heart and the most recent on the outside, the way a trunk actually grows.
+ * Rounds where the pool found a block are drawn wider and brighter. The
+ * colour is the banner's own: its rings are a warm bone grey, sampled at
+ * #807c74 through the strokes with the lit edges around #b1aa9f, and there is
+ * no hue in them anywhere. A green ring read as an interface accent laid over
+ * a texture, because no trunk has ever had one.
  *
- * Both are fixed by being literal about dendrology. A good year is a WIDE
- * ring, so the gap to the next ring is proportional to what that round paid;
- * lean rounds crowd together and a block pushes the next ring out. That says
- * everything the green was saying, in the language the picture is already
- * speaking, and the whole thing goes back to one colour. */
-
-const POINTS = 72;
-
-/** A ring that is not a circle. Three harmonics at seeded phases, a couple of
- * percent each, plus a slight oval — a cut trunk is never round. */
-function ringPath(cx: number, cy: number, r: number, seed: number): string {
-  let d = "";
-  for (let i = 0; i <= POINTS; i += 1) {
-    const a = (i / POINTS) * Math.PI * 2;
-    const wobble =
-      1 +
-      0.026 * Math.sin(a * 3 + seed) +
-      0.015 * Math.sin(a * 5 + seed * 1.7) +
-      0.009 * Math.sin(a * 9 + seed * 2.6);
-    const rr = r * wobble;
-    const x = cx + Math.cos(a) * rr;
-    const y = cy + Math.sin(a) * rr * 0.93;
-    d += `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-  }
-  return `${d}Z`;
-}
-
-const CX = 520;
-const CY = 196;
-const HEART = 22;
-const BUDGET = 440;
-const MIN_STEP = 4;
-
+ * It sits behind the clock rather than behind the figure, so the thing you
+ * are meant to read stays on clean ground. */
 export function Rings({ rounds }: { readonly rounds: readonly Round[] }) {
-  // Oldest first: index order runs heartwood to bark.
+  // Oldest first, so index order runs heartwood to bark.
   const ordered = [...rounds].reverse();
-  if (ordered.length === 0) return null;
-
-  const logs = ordered.map((r) => Math.log10(Math.max(r.perSlot, 1e-6)));
-  const lo = Math.min(...logs);
-  const hi = Math.max(...logs);
-  const span = hi - lo || 1;
-  const share = logs.map((l) => (l - lo) / span);
-  const shareTotal = share.reduce((a, b) => a + b, 0) || 1;
-  const spare = Math.max(BUDGET - MIN_STEP * ordered.length, 0);
-
-  let r = HEART;
-  const rings = ordered.map((round, i) => {
-    r += MIN_STEP + ((share[i] ?? 0) / shareTotal) * spare;
-    return { round, r, seed: (round.n % 97) * 0.37 };
-  });
+  const count = Math.max(ordered.length, 1);
 
   return (
     <svg
@@ -73,22 +31,30 @@ export function Rings({ rounds }: { readonly rounds: readonly Round[] }) {
         <linearGradient id="ring-fade" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stopColor="#000" />
           <stop offset="0.68" stopColor="#3a3a3a" />
-          <stop offset="1" stopColor="#d2d2d2" />
+          <stop offset="1" stopColor="#c8c8c8" />
         </linearGradient>
         <mask id="ring-mask">
           <rect width="460" height="320" fill="url(#ring-fade)" />
         </mask>
       </defs>
 
-      <g mask="url(#ring-mask)" fill="none" stroke="var(--ring)">
-        {rings.map(({ round, r: radius, seed }, i) => (
-          <path
-            key={round.n}
-            d={ringPath(CX, CY, radius, seed)}
-            strokeWidth={0.7 + (share[i] ?? 0) * 1.9}
-            opacity={0.16 + (share[i] ?? 0) * 0.2}
-          />
-        ))}
+      <g mask="url(#ring-mask)" fill="none">
+        {ordered.map((round, i) => {
+          const r = 26 + (i / count) * 420;
+          // Rings crowd where growth was slow. A block year is a wide one.
+          const width = round.foundBlock ? 2.4 : 1;
+          return (
+            <circle
+              key={round.n}
+              cx={520}
+              cy={196}
+              r={r}
+              stroke={round.foundBlock ? "var(--ring-lit)" : "var(--ring)"}
+              strokeWidth={width}
+              opacity={round.foundBlock ? 0.5 : 0.26}
+            />
+          );
+        })}
       </g>
     </svg>
   );
