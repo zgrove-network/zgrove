@@ -20,7 +20,15 @@
   --bad: #c25b4e;
   --ring: #7d7768;
 
+  /* Two faces with two jobs. Monospace is for data and nothing else, so a
+     figure is the only thing on the screen set in it and reads as a figure
+     without being told. Everything that is interface — labels, buttons,
+     headings — is the operating system's own text face, which is what native
+     software is set in and costs nothing to load. Setting the whole screen in
+     monospace was a costume: it is how you look technical rather than how you
+     are. */
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Cantarell, "Noto Sans", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -30,7 +38,7 @@ body {
   margin: 0;
   background: var(--ground);
   color: var(--text);
-  font: 13px/1.5 var(--mono);
+  font: 13px/1.5 var(--ui);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -45,13 +53,16 @@ body {
 /* The label. Small, dark, uppercase, and never a sentence. */
 .k {
   display: block;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 11px;
   color: var(--faint);
   white-space: nowrap;
 }
-.v { display: block; color: var(--text); font-variant-numeric: tabular-nums; }
+.v {
+  display: block;
+  color: var(--text);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
 .v.big { font-size: 20px; margin-top: 5px; color: var(--bright); }
 
 /* ---------------------------------------------------------------- shell */
@@ -89,17 +100,15 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .mark { flex-shrink: 0; color: var(--bright); display: block; }
-.wordmark { color: var(--bright); letter-spacing: 0.02em; }
-.tb { display: flex; align-items: baseline; gap: 8px; }
+.wordmark { color: var(--bright); font-weight: 500; }
+.tb { display: flex; align-items: baseline; gap: 7px; }
 .tb .k { display: inline; }
 
 .badge {
   padding: 3px 8px;
   border: 1px solid #4a2f2b;
   color: #b8675c;
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 11px;
 }
 
 /* ---------------------------------------------------------------- stage */
@@ -139,6 +148,7 @@ body {
 
 .figure {
   display: block;
+  font-family: var(--mono);
   font-size: clamp(52px, 7vw, 92px);
   line-height: 1;
   color: var(--bright);
@@ -154,6 +164,7 @@ body {
 .clock-cell { grid-column: 6; text-align: right; }
 .clock {
   display: block;
+  font-family: var(--mono);
   margin-top: 3px;
   font-size: clamp(26px, 3vw, 36px);
   line-height: 1;
@@ -179,9 +190,7 @@ body {
   background: var(--ground);
   text-align: right;
   font-weight: 400;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 11px;
   color: var(--faint);
   padding: 8px 22px 7px;
   border-bottom: 1px solid var(--line);
@@ -190,6 +199,7 @@ body {
 .history td {
   text-align: right;
   padding: 5px 22px;
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   color: var(--dim);
@@ -216,10 +226,8 @@ body {
 
 .panel h2 {
   margin: 0 0 14px;
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--dim);
 }
 
@@ -240,27 +248,27 @@ body {
   outline: none;
   color: var(--bright);
   font: inherit;
+  font-family: var(--mono);
   font-size: 26px;
   font-variant-numeric: tabular-nums;
   padding: 0;
 }
 .box input::placeholder { color: #45413b; }
-.unit { color: var(--dim); font-size: 11px; letter-spacing: 0.12em; }
+.unit { color: var(--dim); font-size: 11px; }
 
 .quick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
 .quick button { padding: 6px 10px; min-height: 40px; text-align: left; }
 .quick .v { font-size: 13px; margin-top: 1px; }
+.quick .k { font-size: 11px; }
 
 /* Label left, figure right, one line each. Everything the rail says. */
 .rows { display: grid; grid-template-columns: 1fr auto; gap: 1px 16px; margin: 16px 0; }
 .rows dt {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 11px;
   color: var(--faint);
   align-self: center;
 }
-.rows dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.rows dd { margin: 0; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* -------------------------------------------------------------- buttons */
 
@@ -282,9 +290,8 @@ button.primary {
   background: #22302a;
   border-color: #3d5343;
   color: #d3e3c9;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
 }
 button.primary:hover { background: #2a3b32; border-color: var(--good); color: var(--bright); }
 button.primary:disabled {
@@ -322,12 +329,10 @@ button.ghost:hover { color: var(--bright); border-color: var(--line); }
 
 .figures { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0; }
 .figures dt {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 11px;
   color: var(--faint);
 }
-.figures dd { margin: 3px 0 0; font-variant-numeric: tabular-nums; text-align: right; }
+.figures dd { margin: 3px 0 0; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
 
 /* ---------------------------------------------------------------- narrow */
 
