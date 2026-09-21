@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor the project claims to support, and the version it is
+        # developed on. A break that only shows on one of them is exactly
+        # what this matrix is for.
+        node: ["20", "24"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # No version pinned here on purpose. package.json's packageManager
+      # field is the one source of truth, and naming it twice is an error
+      # the action refuses outright.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      # better-sqlite3 is native. Where no prebuild matches it compiles here,
+      # which is slow but is also the install a contributor would do.
+      - run: pnpm install --frozen-lockfile
+
+      # Build first. A package typechecks against its dependencies' emitted
+      # declarations, so on a clean checkout there is nothing to typecheck
+      # against until they exist. Locally this passes either way, because
+      # dist is always left over from the last build — which is precisely the
+      # difference a clean runner exists to find.
+      - run: pnpm -r build
+
+      - run: pnpm -r typecheck
+
+      - run: pnpm -r --if-present test
