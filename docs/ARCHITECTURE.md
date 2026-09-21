@@ -120,21 +120,27 @@ stops being true if the topology changes.
 
 ## 6. The payout receipt
 
-A round publishes: the window, the total paid, the number of accounts paid,
-and the shielded transaction ids — or a merkle root over them, with the list
-served alongside, once a round is large enough that the ids do not fit
-anywhere convenient.
+A round publishes the window, the number of accounts paid, the transaction id
+that carried the payment, and a merkle commitment over the entries. Each
+contributor is given the path to their own leaf.
 
-Anyone can then check that the money moved: each txid is a real transaction on
-Zcash mainnet, and the amounts leaving the treasury are visible. Nobody can
-derive who received what, because the receiving ends are shielded. That is the
-whole product stated as an artifact rather than as a promise, and it is
-repeatable — one per round, rather than one certificate to point at.
+That split is forced by what a shielded transaction actually reveals. The
+transaction exists and its shielded output count is public; the **amounts are
+not**. So "this round paid X" is a claim the chain does not confirm, and a
+receipt that leans on it would be asserting exactly the part nobody can check.
 
-The receipt must carry the claim it is offered as evidence for. A receipt that
-proves only that *some* transaction happened proves the uninteresting half; it
-has to pin the amount, the window and the count, which are the parts a
-contributor would otherwise have to take on trust.
+What the construction does establish: the transaction is real and can be
+looked up; it has at least as many shielded outputs as the round claims
+accounts; and a contributor can verify their own amount is inside what was
+committed to, without learning anyone else's and without the operator being
+able to edit it afterwards.
+
+What it does not establish, and the receipt says so in its own body: that the
+stated total is correct, and that the set of entries is complete. A
+contributor proves their own inclusion, not the absence of omissions. Saying
+that inside the artifact is the point — a proof that implies more than it
+shows is worse than no proof, and it is the specific failure this project
+watched somebody else ship.
 
 It does not go on Solana. Publishing a record of Zcash payout activity next to
 a Solana token identity links the two, which is the same leak as letting stake
