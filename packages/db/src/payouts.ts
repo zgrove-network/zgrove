@@ -15,7 +15,12 @@ export interface RoundRequest {
   readonly periodEnd: number;
   /** What the treasury holds for this window, in zatoshi. */
   readonly totalZat: number;
-  readonly feeBps: number;
+  /**
+   * The fee an account pays, in basis points. Called once per account, so a
+   * staked contributor and an unstaked one can be charged differently in the
+   * same round.
+   */
+  readonly feeBpsFor: (accountId: string) => number;
   /** Below this, an account is carried forward rather than paid dust. */
   readonly minPayoutZat: number;
   readonly atSeconds: number;
@@ -25,6 +30,10 @@ export interface PlannedEntry {
   readonly accountId: string;
   readonly payoutAddress: string;
   readonly weight: number;
+  /** Before fee, from weight alone. */
+  readonly grossZat: number;
+  readonly feeBps: number;
+  readonly feeZat: number;
   readonly carriedInZat: number;
   readonly amountZat: number;
   readonly carriedOutZat: number;
@@ -34,6 +43,7 @@ export interface PlannedRound {
   readonly periodStart: number;
   readonly periodEnd: number;
   readonly totalZat: number;
+  /** The sum of what every account was charged. */
   readonly feeZat: number;
   readonly distributableZat: number;
   readonly totalWeight: number;
@@ -103,8 +113,10 @@ export function createPayouts(db: Db): Payouts {
 
   const insertEntry = db.prepare(`
     INSERT INTO payout_entries
-      (round_id, account_id, weight, carried_in_zat, amount_zat, carried_out_zat, payout_address)
-    VALUES (@roundId, @accountId, @weight, @carriedIn, @amount, @carriedOut, @address)
+      (round_id, account_id, weight, carried_in_zat, amount_zat, carried_out_zat,
+       payout_address, fee_bps, fee_zat)
+    VALUES (@roundId, @accountId, @weight, @carriedIn, @amount, @carriedOut,
+            @address, @feeBps, @fee)
   `);
 
   return {
@@ -128,9 +140,6 @@ export function createPayouts(db: Db): Payouts {
           `A payout period must align to ${BUCKET_SECONDS}-second bucket boundaries`,
         );
       }
-      if (request.feeBps < 0 || request.feeBps > 10_000) {
-        throw new Error("feeBps must be between 0 and 10000");
-      }
 
       const rows = subjects.all(request.periodStart, request.periodEnd);
       const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
@@ -146,26 +155,36 @@ export function createPayouts(db: Db): Payouts {
         );
       }
 
-      // Fee is taken off the top and floored, so rounding can only ever leave
-      // more for contributors, never less.
-      const feeZat = Math.floor((request.totalZat * request.feeBps) / 10_000);
-      const distributableZat = request.totalZat - feeZat;
-
-      const shares = splitByWeight(
-        distributableZat,
+      // The whole total is split by weight first, and each account's own fee
+      // comes out of its own share. One fee off the top would charge every
+      // contributor the same rate, which is the thing tiers exist to stop.
+      const gross = splitByWeight(
+        request.totalZat,
         rows.map((row) => row.weight),
         totalWeight,
       );
 
+      let feeZat = 0;
       const entries: PlannedEntry[] = rows.map((row, index) => {
+        const grossZat = gross[index] ?? 0;
+        const feeBps = readFeeBps(request.feeBpsFor(row.account_id), row.account_id);
+
+        // Floored, so the odd zatoshi of rounding stays with the contributor
+        // rather than the pool.
+        const entryFee = Math.floor((grossZat * feeBps) / 10_000);
+        feeZat += entryFee;
+
         const carriedIn = row.carried;
-        const owed = (shares[index] ?? 0) + carriedIn;
+        const owed = grossZat - entryFee + carriedIn;
         const pays = owed >= request.minPayoutZat && owed > 0;
 
         return {
           accountId: row.account_id,
           payoutAddress: row.payout_address,
           weight: row.weight,
+          grossZat,
+          feeBps,
+          feeZat: entryFee,
           carriedInZat: carriedIn,
           amountZat: pays ? owed : 0,
           carriedOutZat: pays ? 0 : owed,
@@ -177,7 +196,7 @@ export function createPayouts(db: Db): Payouts {
         periodEnd: request.periodEnd,
         totalZat: request.totalZat,
         feeZat,
-        distributableZat,
+        distributableZat: request.totalZat - feeZat,
         totalWeight,
         entries,
       };
@@ -207,6 +226,8 @@ export function createPayouts(db: Db): Payouts {
             amount: entry.amountZat,
             carriedOut: entry.carriedOutZat,
             address: entry.payoutAddress,
+            feeBps: entry.feeBps,
+            fee: entry.feeZat,
           });
         }
         return created.id;
@@ -255,10 +276,21 @@ export function splitByWeight(
   return floors;
 }
 
+/** The round-level rate is the effective average; per-account rates are on
+ * the entries, which is where a contributor checks their own. */
 function feeBpsOf(round: PlannedRound): number {
   return round.totalZat === 0
     ? 0
     : Math.round((round.feeZat / round.totalZat) * 10_000);
+}
+
+function readFeeBps(value: number, accountId: string): number {
+  if (!Number.isInteger(value) || value < 0 || value > 10_000) {
+    throw new Error(
+      `Fee for ${accountId} must be an integer 0-10000 basis points, got ${value}`,
+    );
+  }
+  return value;
 }
 
 function guardAmount(value: number, name: string): void {

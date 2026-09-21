@@ -3,6 +3,8 @@ import type { Db } from "./database.js";
 export interface Account {
   readonly id: string;
   readonly payoutAddress: string;
+  /** The wallet a fee tier is read from, once one has been proven. */
+  readonly solanaAddress?: string | null;
 }
 
 export interface WorkerKeyBinding {
@@ -29,12 +31,17 @@ export interface Registry {
   findWorkerKey(publicKey: string): WorkerKeyBinding | null;
   /** True when the account has enrolled at least one rig key. */
   hasEnrolledKeys(accountId: string): boolean;
+  /** Records a wallet whose ownership has already been proven by signature. */
+  bindSolanaAddress(accountId: string, solanaAddress: string, atSeconds: number): void;
+  /** Accounts that have proven a wallet, for reading tiers in one pass. */
+  accountsWithWallets(): readonly { accountId: string; solanaAddress: string }[];
   touchWorkerKey(publicKey: string, atSeconds: number): void;
 }
 
 interface AccountRow {
   readonly id: string;
   readonly payout_address: string;
+  readonly solana_address: string | null;
 }
 
 interface BindingRow {
@@ -50,7 +57,18 @@ export function createRegistry(db: Db): Registry {
   );
 
   const selectAccount = db.prepare<[string], AccountRow>(
-    "SELECT id, payout_address FROM accounts WHERE id = ?",
+    "SELECT id, payout_address, solana_address FROM accounts WHERE id = ?",
+  );
+
+  // Only ever set from a verified binding. The signature check lives one
+  // layer up; this refuses to overwrite a wallet silently, because a tier
+  // moved without the owner noticing is a discount taken from them.
+  const selectWallets = db.prepare<[], { id: string; solana_address: string }>(
+    "SELECT id, solana_address FROM accounts WHERE solana_address IS NOT NULL ORDER BY id",
+  );
+
+  const bindWallet = db.prepare(
+    "UPDATE accounts SET solana_address = ?, solana_bound_at = ? WHERE id = ?",
   );
 
   // The worker row is the same one shares are attributed to. Under a signed
@@ -93,7 +111,11 @@ export function createRegistry(db: Db): Registry {
       const row = selectAccount.get(id);
       return row === undefined
         ? null
-        : { id: row.id, payoutAddress: row.payout_address };
+        : {
+            id: row.id,
+            payoutAddress: row.payout_address,
+            solanaAddress: row.solana_address,
+          };
     },
 
     registerWorkerKey(registration) {
@@ -150,6 +172,18 @@ export function createRegistry(db: Db): Registry {
             workerId: row.worker_id,
             workerName: row.worker_name,
           };
+    },
+
+    bindSolanaAddress(accountId, solanaAddress, atSeconds) {
+      if (bindWallet.run(solanaAddress, atSeconds, accountId).changes !== 1) {
+        throw new Error(`No such account: ${accountId}`);
+      }
+    },
+
+    accountsWithWallets() {
+      return selectWallets
+        .all()
+        .map((row) => ({ accountId: row.id, solanaAddress: row.solana_address }));
     },
 
     hasEnrolledKeys(accountId) {

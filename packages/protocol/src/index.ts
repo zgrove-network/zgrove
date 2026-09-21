@@ -1,4 +1,6 @@
 export * from "./attestation.js";
+export * from "./base58.js";
+export * from "./solana-binding.js";
 export * from "./control.js";
 export * from "./identity.js";
 export * from "./receipt.js";

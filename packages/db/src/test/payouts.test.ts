@@ -99,7 +99,7 @@ test("a round conserves the distributable amount", () => {
     periodStart: START,
     periodEnd: END,
     totalZat: 1_000_000_001,
-    feeBps: 100,
+    feeBpsFor: () => 100,
     minPayoutZat: 0,
     atSeconds: END,
   });
@@ -122,7 +122,7 @@ test("the fee is floored, so rounding never costs a contributor", () => {
     periodStart: START,
     periodEnd: END,
     totalZat: 999,
-    feeBps: 100,
+    feeBpsFor: () => 100,
     minPayoutZat: 0,
     atSeconds: END,
   });
@@ -141,7 +141,7 @@ test("a share below the minimum is carried, not dropped and not dusted", () => {
     periodStart: START,
     periodEnd: END,
     totalZat: 100_000_000,
-    feeBps: 0,
+    feeBpsFor: () => 0,
     minPayoutZat: 1_000_000,
     atSeconds: END,
   });
@@ -166,7 +166,7 @@ test("carried value accumulates and is eventually paid out", () => {
     periodStart: START,
     periodEnd: END,
     totalZat: 500_000,
-    feeBps: 0,
+    feeBpsFor: () => 0,
     minPayoutZat: 1_000_000,
     atSeconds: END,
   });
@@ -180,7 +180,7 @@ test("carried value accumulates and is eventually paid out", () => {
     periodStart: END,
     periodEnd: END + 86_400,
     totalZat: 600_000,
-    feeBps: 0,
+    feeBpsFor: () => 0,
     minPayoutZat: 1_000_000,
     atSeconds: END + 86_400,
   });
@@ -202,7 +202,7 @@ test("the same period cannot be recorded twice", () => {
     periodStart: START,
     periodEnd: END,
     totalZat: 1_000_000,
-    feeBps: 0,
+    feeBpsFor: () => 0,
     minPayoutZat: 0,
     atSeconds: END,
   });
@@ -224,7 +224,7 @@ test("weight decides the split and only accepted weight counts", () => {
     periodStart: START,
     periodEnd: END,
     totalZat: 400,
-    feeBps: 0,
+    feeBpsFor: () => 0,
     minPayoutZat: 0,
     atSeconds: END,
   });
@@ -246,7 +246,7 @@ test("a total with no work behind it is refused, not quietly absorbed", () => {
         periodStart: START,
         periodEnd: END,
         totalZat: 1_000_000,
-        feeBps: 0,
+        feeBpsFor: () => 0,
         minPayoutZat: 0,
         atSeconds: END,
       }),
@@ -256,8 +256,8 @@ test("a total with no work behind it is refused, not quietly absorbed", () => {
 });
 
 test("a nonsense round is refused before it can be recorded", () => {
-  const { db, payouts } = fixture();
-  const base = { periodStart: START, periodEnd: END, feeBps: 0, minPayoutZat: 0, atSeconds: END };
+  const { db, payouts, credit } = fixture();
+  const base = { periodStart: START, periodEnd: END, feeBpsFor: () => 0, minPayoutZat: 0, atSeconds: END };
 
   // A window that starts mid-bucket would drop that bucket without a word.
   assert.throws(
@@ -271,6 +271,86 @@ test("a nonsense round is refused before it can be recorded", () => {
     () => payouts.plan({ ...base, periodEnd: START, totalZat: 1 }),
     /end after it starts/,
   );
-  assert.throws(() => payouts.plan({ ...base, feeBps: 10_001, totalZat: 1 }), /feeBps/);
+  // A bad rate is refused per account, so it needs an account to refuse for.
+  credit("acct_a", 100);
+  assert.throws(
+    () => payouts.plan({ ...base, feeBpsFor: () => 10_001, totalZat: 1 }),
+    /basis points/,
+  );
+  db.close();
+});
+
+test("each account pays its own rate out of its own share", () => {
+  const { db, payouts, credit } = fixture();
+  credit("acct_staked", 500);
+  credit("acct_plain", 500);
+
+  const round = payouts.plan({
+    periodStart: START,
+    periodEnd: END,
+    totalZat: 1_000_000,
+    // Equal work, different tiers. One fee off the top could not express this.
+    feeBpsFor: (id) => (id === "acct_staked" ? 50 : 200),
+    minPayoutZat: 0,
+    atSeconds: END,
+  });
+
+  const staked = round.entries.find((e) => e.accountId === "acct_staked");
+  const plain = round.entries.find((e) => e.accountId === "acct_plain");
+
+  assert.equal(staked?.grossZat, 500_000);
+  assert.equal(plain?.grossZat, 500_000);
+  assert.equal(staked?.feeZat, 2_500);
+  assert.equal(plain?.feeZat, 10_000);
+  assert.equal(staked?.amountZat, 497_500);
+  assert.equal(plain?.amountZat, 490_000);
+
+  // The discount comes out of the pool's cut, not out of the other
+  // contributor's share: equal work still means equal gross.
+  assert.equal(round.feeZat, 12_500);
+  db.close();
+});
+
+test("fees and payouts still account for every zatoshi", () => {
+  const { db, payouts, credit } = fixture();
+  credit("acct_a", 333);
+  credit("acct_b", 333);
+  credit("acct_c", 334);
+
+  const round = payouts.plan({
+    periodStart: START,
+    periodEnd: END,
+    totalZat: 1_000_003,
+    feeBpsFor: (id) => (id === "acct_a" ? 50 : id === "acct_b" ? 137 : 200),
+    minPayoutZat: 0,
+    atSeconds: END,
+  });
+
+  const paid = sum(round.entries.map((e) => e.amountZat));
+  const carried = sum(round.entries.map((e) => e.carriedOutZat));
+  const fees = sum(round.entries.map((e) => e.feeZat));
+  const gross = sum(round.entries.map((e) => e.grossZat));
+
+  assert.equal(gross, round.totalZat);
+  assert.equal(paid + carried + fees, round.totalZat);
+  assert.equal(fees, round.feeZat);
+  db.close();
+});
+
+test("a zero-fee tier charges nothing at all", () => {
+  const { db, payouts, credit } = fixture();
+  credit("acct_free", 1);
+
+  const round = payouts.plan({
+    periodStart: START,
+    periodEnd: END,
+    totalZat: 999_999,
+    feeBpsFor: () => 0,
+    minPayoutZat: 0,
+    atSeconds: END,
+  });
+
+  assert.equal(round.feeZat, 0);
+  assert.equal(round.entries[0]?.amountZat, 999_999);
   db.close();
 });

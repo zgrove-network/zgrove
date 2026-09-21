@@ -1,6 +1,15 @@
 import { parseArgs } from "node:util";
 
-import { createPayouts, migrate, openDatabase, type PlannedRound } from "@zgrove/db";
+import {
+  createPayouts,
+  createRegistry,
+  migrate,
+  openDatabase,
+  type PlannedRound,
+} from "@zgrove/db";
+
+import { DEFAULT_FEE_TIERS, feeBpsForBalance, parseFeeTiers } from "../tiers.js";
+import { createSolanaReader } from "../wallet/solana.js";
 
 import { padLeft, padRight, percent } from "./format.js";
 import { formatZec, parseInstant, parseZec } from "./money.js";
@@ -11,7 +20,10 @@ import { formatZec, parseInstant, parseZec } from "./money.js";
  * still sends nothing — it only writes down what was decided, so that the
  * sending step later has something it can be checked against.
  */
-export function runPayout(argv: readonly string[], env: NodeJS.ProcessEnv): number {
+export async function runPayout(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv,
+): Promise<number> {
   const { values } = parseArgs({
     args: [...argv],
     options: {
@@ -19,7 +31,7 @@ export function runPayout(argv: readonly string[], env: NodeJS.ProcessEnv): numb
       from: { type: "string" },
       to: { type: "string" },
       total: { type: "string" },
-      "fee-bps": { type: "string", default: "100" },
+      "fee-bps": { type: "string" },
       "min-payout": { type: "string", default: "0.001" },
       record: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
@@ -30,7 +42,7 @@ export function runPayout(argv: readonly string[], env: NodeJS.ProcessEnv): numb
   const periodStart = parseInstant(required(values.from, "--from"));
   const periodEnd = parseInstant(required(values.to, "--to"));
   const totalZat = parseZec(required(values.total, "--total"));
-  const feeBps = Number(values["fee-bps"] ?? "100");
+  const flatFeeBps = values["fee-bps"] === undefined ? null : Number(values["fee-bps"]);
   const minPayoutZat = parseZec(values["min-payout"] ?? "0");
 
   const databasePath = values.db ?? env["ZGROVE_DB_PATH"] ?? "data/zgrove.sqlite";
@@ -39,11 +51,12 @@ export function runPayout(argv: readonly string[], env: NodeJS.ProcessEnv): numb
   try {
     migrate(db);
     const payouts = createPayouts(db);
+    const feeBpsFor = await resolveFees(db, env, flatFeeBps);
     const round = payouts.plan({
       periodStart,
       periodEnd,
       totalZat,
-      feeBps,
+      feeBpsFor,
       minPayoutZat,
       atSeconds: Math.floor(Date.now() / 1000),
     });
@@ -51,7 +64,7 @@ export function runPayout(argv: readonly string[], env: NodeJS.ProcessEnv): numb
     if (values.json === true) {
       process.stdout.write(`${JSON.stringify(round, null, 2)}\n`);
     } else {
-      writeRound(round, feeBps);
+      writeRound(round);
     }
 
     if (values.record === true) {
@@ -68,7 +81,7 @@ export function runPayout(argv: readonly string[], env: NodeJS.ProcessEnv): numb
   }
 }
 
-function writeRound(round: PlannedRound, feeBps: number): void {
+function writeRound(round: PlannedRound): void {
   const nameWidth = Math.max(
     7,
     ...round.entries.map((entry) => entry.accountId.length),
@@ -77,6 +90,7 @@ function writeRound(round: PlannedRound, feeBps: number): void {
   const header =
     padRight("account", nameWidth) +
     padLeft("share", 9) +
+    padLeft("fee", 7) +
     padLeft("carried in", 16) +
     padLeft("pays", 16) +
     padLeft("carried out", 16);
@@ -85,7 +99,7 @@ function writeRound(round: PlannedRound, feeBps: number): void {
     `period:       ${new Date(round.periodStart * 1000).toISOString()}`,
     `          ->  ${new Date(round.periodEnd * 1000).toISOString()}`,
     `treasury:     ${formatZec(round.totalZat)} ZEC`,
-    `fee:          ${formatZec(round.feeZat)} ZEC  (${feeBps} bps)`,
+    `fee:          ${formatZec(round.feeZat)} ZEC  (${round.totalZat === 0 ? 0 : Math.round((round.feeZat / round.totalZat) * 10_000)} bps effective)`,
     `distributable:${formatZec(round.distributableZat).padStart(14)} ZEC`,
     "",
     header,
@@ -104,6 +118,7 @@ function writeRound(round: PlannedRound, feeBps: number): void {
     lines.push(
       padRight(entry.accountId, nameWidth) +
         padLeft(percent(entry.weight, round.totalWeight), 9) +
+        padLeft(`${entry.feeBps}bp`, 7) +
         padLeft(formatZec(entry.carriedInZat), 16) +
         padLeft(entry.amountZat === 0 ? "-" : formatZec(entry.amountZat), 16) +
         padLeft(entry.carriedOutZat === 0 ? "-" : formatZec(entry.carriedOutZat), 16),
@@ -120,6 +135,7 @@ function writeRound(round: PlannedRound, feeBps: number): void {
   lines.push(
     padRight("total", nameWidth) +
       padLeft("", 9) +
+      padLeft("", 7) +
       padLeft(formatZec(carriedIn), 16) +
       padLeft(formatZec(paid), 16) +
       padLeft(formatZec(carriedOut), 16),
@@ -132,6 +148,48 @@ function writeRound(round: PlannedRound, feeBps: number): void {
   );
 
   process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+/**
+ * A flat rate when one is given, otherwise the tier each account's proven
+ * wallet reaches.
+ *
+ * Every balance is read before anything is computed, so a round cannot be
+ * priced against a balance that moved partway through it, and two accounts in
+ * the same round are never quoted against different moments.
+ */
+async function resolveFees(
+  db: ReturnType<typeof openDatabase>,
+  env: NodeJS.ProcessEnv,
+  flatFeeBps: number | null,
+): Promise<(accountId: string) => number> {
+  if (flatFeeBps !== null) {
+    return () => flatFeeBps;
+  }
+
+  const tiers = parseFeeTiers(env["ZGROVE_FEE_TIERS"] ?? DEFAULT_FEE_TIERS);
+  const mint = env["ZGROVE_STAKE_MINT"]?.trim();
+
+  // No token yet, or nobody has proven a wallet: everyone is on the bottom
+  // rung, which is what the ladder already says rather than a special case.
+  if (mint === undefined || mint === "") {
+    return () => feeBpsForBalance(tiers, 0);
+  }
+
+  const reader = createSolanaReader({
+    rpcUrl: env["ZGROVE_SOLANA_RPC"] ?? "https://api.mainnet-beta.solana.com",
+    mint,
+    timeoutMs: 20_000,
+  });
+
+  const balances = new Map<string, number>();
+  for (const { accountId, solanaAddress } of createRegistry(db).accountsWithWallets()) {
+    // A wallet that cannot be read is charged the bottom rung rather than
+    // given a discount nobody could verify.
+    balances.set(accountId, await reader.tokenBalance(solanaAddress).catch(() => 0));
+  }
+
+  return (accountId) => feeBpsForBalance(tiers, balances.get(accountId) ?? 0);
 }
 
 function required(value: string | undefined, flag: string): string {

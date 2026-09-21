@@ -86,7 +86,7 @@ function seeded(): { db: Db; dispatch: Dispatch; roundId: number } {
     periodStart: DAY,
     periodEnd: DAY + 86_400,
     totalZat: 400_000_000,
-    feeBps: 0,
+    feeBpsFor: () => 0,
     minPayoutZat: 0,
     atSeconds: DAY + 86_400,
   });
@@ -274,7 +274,7 @@ test("a round that pays nobody is refused rather than sent empty", async () => {
     periodStart: DAY,
     periodEnd: DAY + 86_400,
     totalZat: 1_000,
-    feeBps: 0,
+    feeBpsFor: () => 0,
     minPayoutZat: 100_000,
     atSeconds: DAY,
   });
