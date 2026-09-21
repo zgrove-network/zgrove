@@ -8,14 +8,14 @@ export const metadata = {
 
 export default function SealedPage() {
   return (
-    <div className="page">
+    <div className="page wide">
       <p className="bar">
         <b>zgrove</b> — <a href="/">back</a> · zgrove.network
       </p>
 
       <h1>Bid on a block you cannot see.</h1>
 
-      <p className="i dim">
+      <p className="i dim narrow">
         Twenty slots in every block.
         <br />
         You bid in a shielded memo, so nobody reads it — not the other bidders,
@@ -27,6 +27,8 @@ export default function SealedPage() {
       <SealedBox />
 
       <hr />
+
+      <div className="narrow">
 
       <h2>why the bid has to be secret</h2>
 
@@ -127,6 +129,7 @@ anything real      `}<b className="bad">no</b>
         on <a href="/">the front page</a>. This is not. It is here to be argued
         with before it is written.
       </p>
+      </div>
     </div>
   );
 }

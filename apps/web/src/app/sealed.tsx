@@ -19,8 +19,8 @@ import {
 const TICK_MS = 200;
 const SPEED = Math.round(1000 / TICK_MS);
 
-/** Real time the opened box stays on screen before the next round. */
-const HOLD_TICKS = 20;
+/** Real time the opened box stays up before the next round. */
+const HOLD_TICKS = 22;
 
 function reduced(): boolean {
   if (typeof window === "undefined") return false;
@@ -43,7 +43,7 @@ function useSettling(target: string | null): string {
     }
 
     const began = Date.now();
-    const span = 560;
+    const span = 620;
     const id = window.setInterval(() => {
       const through = (Date.now() - began) / span;
       if (through >= 1) {
@@ -134,7 +134,7 @@ export function SealedBox() {
         pot: null,
         foundBlock: false,
         balance: now.balance + delta,
-        history: [row, ...now.history].slice(0, 6),
+        history: [row, ...now.history].slice(0, 7),
       };
     });
   }, []);
@@ -147,10 +147,10 @@ export function SealedBox() {
 
   const potText = live.pot === null ? null : zec(live.pot);
   const shownPot = useSettling(potText);
-  const shareText = live.pot === null ? "" : zec(live.pot / SLOTS);
 
   const mm = String(Math.floor(live.left / 60)).padStart(2, "0");
   const ss = String(live.left % 60).padStart(2, "0");
+  const closingSoon = live.open && live.left <= 12;
 
   function seal() {
     const value = Number.parseFloat(draft);
@@ -160,64 +160,74 @@ export function SealedBox() {
 
   return (
     <div className="sealed">
-      <p className="sim">
-        <b>simulation.</b> No chain, no pool, no money. Invented numbers, drawn
-        from a distribution picked to be honest about mining rather than
-        flattering. Nothing on this page has happened. The clock runs at{" "}
-        {SPEED}&times; so a round fits in a glance — a real round is one Zcash
+      <p className="simline">
+        <b>simulation</b> — no chain, no pool, no money, and nothing here has
+        happened. The clock runs {SPEED}&times;; a real round is one Zcash
         block, {ROUND_SECONDS} seconds.
       </p>
 
-      <div className="round">
-        <span className="dim">round</span>
-        <span>{live.round}</span>
-        <span className="dim">block</span>
-        <span>{live.block.toLocaleString("en-US")}</span>
-        <span className="dim">closes</span>
-        <span className={live.open && live.left <= 10 ? "bad" : undefined}>
-          {live.open ? `${mm}:${ss}` : "closed"}
-        </span>
-        <span className="dim">slots</span>
-        <span>{SLOTS}</span>
-        <span className="dim">bids in</span>
-        <span>
-          {live.bids} <span className="dim">— amounts not shown, to anyone</span>
-        </span>
-      </div>
+      <div className="board">
+        <div className="boardline">
+          <span>
+            round <b>{live.round}</b>
+          </span>
+          <span>
+            block <b>{live.block.toLocaleString("en-US")}</b>
+          </span>
+        </div>
 
-      <div className="box">
-        <div className="dim">in the box</div>
-        {live.open ? (
-          <>
-            <div className="figure sealed-figure">
-              ???<span className="caret" aria-hidden="true">
-                _
-              </span>
-            </div>
-            <div className="dim">
-              Sealed until the block closes. We cannot see it either — it has
-              not been mined yet.
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={live.foundBlock ? "figure good" : "figure"}>
-              {shownPot} ZEC
-            </div>
-            <div className="dim">
-              <span className="brightish">{shareText}</span> per slot —{" "}
-              {live.foundBlock ? "the pool found a block" : "a quiet round"}
-            </div>
-          </>
-        )}
-      </div>
+        <div className="stage">
+          <div className="stage-fill">
+            {live.open ? (
+              <>
+                <div className="figure waiting">
+                  ???
+                  <span className="caret" aria-hidden="true">
+                    _
+                  </span>
+                </div>
+                <div className="under">
+                  in the box — sealed until the block closes
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={live.foundBlock ? "figure hit" : "figure"}>
+                  {shownPot} ZEC
+                </div>
+                <div className="under">
+                  <b>{zec((live.pot ?? 0) / SLOTS)}</b> per slot —{" "}
+                  {live.foundBlock ? "the pool found a block" : "a quiet round"}
+                </div>
+              </>
+            )}
+          </div>
 
-      <h2>your bid</h2>
+          <div>
+            <div className={closingSoon ? "clock soon" : "clock"}>
+              {live.open ? `${mm}:${ss}` : "00:00"}
+            </div>
+            <div className="under right">
+              {live.open ? "until it opens" : "opened"}
+            </div>
+          </div>
+        </div>
+
+        <div className="boardline" style={{ marginTop: 22 }}>
+          <span>
+            <b>{SLOTS}</b> slots
+          </span>
+          <span>
+            <b>{live.bids}</b> bids in
+          </span>
+          <span>amounts hidden from everyone, us included</span>
+        </div>
+      </div>
 
       {live.open && bid === null ? (
         <div className="bidrow">
           <div>
-            <label htmlFor="bid">&nbsp;&nbsp;amount (ZEC)</label>
+            <label htmlFor="bid">&nbsp;&nbsp;your bid (ZEC)</label>
             <input
               id="bid"
               type="text"
@@ -233,35 +243,31 @@ export function SealedBox() {
           <button type="button" onClick={seal}>
             seal and send
           </button>
+          <span className="dim">
+            one shielded memo, encrypted on arrival — no second phase
+          </span>
         </div>
       ) : (
-        <div className="round">
-          <span className="dim">amount</span>
-          <span className="brightish">{bid === null ? "—" : zec(bid)} ZEC</span>
-          <span className="dim">state</span>
-          <span>
-            {bid === null
-              ? "you sat this one out"
-              : live.open
-                ? "sealed — read when the block closes"
-                : "opened"}
-          </span>
-          <span className="dim">memo</span>
-          <span className="dim">
-            zs1q…8f4c · block {live.block.toLocaleString("en-US")}
-          </span>
-        </div>
+        <p className="bidrow">
+          {bid === null ? (
+            <span className="dim">You sat this round out.</span>
+          ) : (
+            <span>
+              Sealed <b className="brightish">{zec(bid)}</b> ZEC{" "}
+              <span className="dim">
+                · memo zs1q…8f4c · block{" "}
+                {live.block.toLocaleString("en-US")} ·{" "}
+                {live.open ? "read when the block closes" : "opened"}
+              </span>
+            </span>
+          )}
+        </p>
       )}
-
-      <p className="i dim">
-        A bid rides in the memo field of a shielded transaction. It is on the
-        chain and it is timestamped, and it is encrypted to one reader. No
-        commit-reveal, no second phase, nothing to walk back.
-      </p>
 
       <h2>last rounds</h2>
 
-      <table>
+      <div className="scroller">
+        <table className="wide">
         <thead>
           <tr>
             <th>round</th>
@@ -282,7 +288,8 @@ export function SealedBox() {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <p className="foot dim">
         balance <span className="brightish">{zec(live.balance)}</span> ZEC ·{" "}
