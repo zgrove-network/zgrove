@@ -1,34 +1,32 @@
-import { TARGET_SECONDS } from "../lib/chain";
+import { UNSIGNED, type Block } from "../lib/chain";
 import { clock } from "../lib/market";
-import type { Block } from "../lib/chain";
 import { Rings } from "./Rings";
 
 interface Props {
   readonly blocks: readonly Block[];
   readonly elapsed: number;
   readonly poolTotal: number;
+  readonly picked: string | null;
 }
 
-export function Stage({ blocks, elapsed, poolTotal }: Props) {
-  const past = elapsed >= TARGET_SECONDS;
-  // How far the clock has run toward the line, and a little beyond it, so
-  // crossing is something you watch happen rather than a state change.
-  const fill = Math.min(1, elapsed / (TARGET_SECONDS * 1.6));
-  const notch = (TARGET_SECONDS / (TARGET_SECONDS * 1.6)) * 100;
+export function Stage({ blocks, elapsed, poolTotal, picked }: Props) {
+  const last = blocks[0];
 
   return (
     <section className="stage">
-      <Rings blocks={blocks} />
+      <Rings blocks={blocks} picked={picked} />
 
       <div className="stage-grid">
         <div className="cell hero">
           <span className="k">since last block</span>
-          <span className={past ? "figure over" : "figure"}>{clock(elapsed)}</span>
+          <span className="figure">{clock(elapsed)}</span>
         </div>
 
         <div className="cell">
-          <span className="k">line</span>
-          <span className="v big">{TARGET_SECONDS}s</span>
+          <span className="k">last taken by</span>
+          <span className="v big">
+            {last === undefined ? "—" : last.miner === UNSIGNED ? "unsigned" : last.miner}
+          </span>
         </div>
 
         <div className="cell">
@@ -36,11 +34,11 @@ export function Stage({ blocks, elapsed, poolTotal }: Props) {
           <span className="v big">{poolTotal.toFixed(1)}</span>
         </div>
 
-        {/* The size of the pool is public; which way it leans is not. That
-            split is the only thing being kept back, and it is the thing an
-            open order book would give away. */}
+        {/* The size of the pool is public; how it is spread across the miners
+            is not. That spread is the only thing held back, and it is exactly
+            what an open book would give away. */}
         <div className="cell">
-          <span className="k">split</span>
+          <span className="k">spread</span>
           <span className="v big sealed">
             ???
             <span className="caret" aria-hidden="true">
@@ -50,17 +48,10 @@ export function Stage({ blocks, elapsed, poolTotal }: Props) {
         </div>
 
         <div className="cell clock-cell">
-          <span className="k">winning now</span>
-          <span className={past ? "clock over" : "clock under"}>
-            {past ? "over" : "under"}
+          <span className="k">your pick</span>
+          <span className={picked === null ? "clock faint" : "clock under"}>
+            {picked === null ? "none" : picked === UNSIGNED ? "unsigned" : picked}
           </span>
-        </div>
-      </div>
-
-      <div className="demand">
-        <div className="demand-bar">
-          <span className={past ? "over" : undefined} style={{ width: `${fill * 100}%` }} />
-          <i style={{ left: `${notch}%` }} aria-hidden="true" />
         </div>
       </div>
     </section>

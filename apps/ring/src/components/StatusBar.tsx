@@ -1,56 +1,45 @@
-import { TARGET_SECONDS, type Block } from "../lib/chain";
-import type { Stats } from "../lib/market";
+import { UNSIGNED } from "../lib/chain";
+import { WINDOW, type Share } from "../lib/market";
 
 interface Props {
-  readonly blocks: readonly Block[];
-  readonly stats: Stats;
+  readonly shares: readonly Share[];
+  readonly counted: number;
+  readonly picked: string | null;
 }
 
-export function StatusBar({ blocks, stats }: Props) {
-  const gaps = [...blocks]
-    .reverse()
-    .map((b) => b.interval)
-    .filter((v): v is number => v !== null);
-
-  const tallest = Math.max(TARGET_SECONDS, ...gaps, 1);
-  const line = (TARGET_SECONDS / tallest) * 100;
-  const share = stats.counted === 0 ? 0 : (stats.under / stats.counted) * 100;
-
+/** Share of the last blocks, as one bar per outcome. The bar a viewer has
+ * money on is lit; the rest sit back. */
+export function StatusBar({ shares, counted, picked }: Props) {
   return (
     <footer className="statusbar">
       <div className="chart-cell">
         <span className="k">
-          how long each of the last {stats.counted} blocks took
+          who took the last {Math.min(counted, WINDOW)} blocks
         </span>
-        <div className="spark" aria-hidden="true">
-          <i className="spark-line" style={{ bottom: `${line}%` }} />
-          {gaps.map((gap, i) => (
-            <span
-              key={i}
-              className={gap >= TARGET_SECONDS ? "spark-bar over" : "spark-bar"}
-              style={{ height: `${(gap / tallest) * 100}%` }}
-            />
+        <div className="shares">
+          {shares.map((s) => (
+            <div
+              key={s.miner}
+              className={picked === s.miner ? "share-row lit" : "share-row"}
+              style={{ flexGrow: Math.max(s.share, 0.02) }}
+              title={`${s.miner} ${(s.share * 100).toFixed(1)}%`}
+            >
+              <span className="share-bar" />
+              <span className="share-name">
+                {s.miner === UNSIGNED ? "unsigned" : s.miner}
+              </span>
+            </div>
           ))}
         </div>
       </div>
 
       <dl className="figures">
-        <div>
-          <dt>median</dt>
-          <dd>{stats.median}s</dd>
-        </div>
-        <div>
-          <dt>mean</dt>
-          <dd>{stats.mean.toFixed(1)}s</dd>
-        </div>
-        <div>
-          <dt>came in under</dt>
-          <dd className="under">{share.toFixed(0)}%</dd>
-        </div>
-        <div>
-          <dt>longest</dt>
-          <dd className="over">{stats.longest}s</dd>
-        </div>
+        {shares.slice(0, 4).map((s) => (
+          <div key={s.miner}>
+            <dt>{s.miner === UNSIGNED ? "unsigned" : s.miner}</dt>
+            <dd>{(s.share * 100).toFixed(0)}%</dd>
+          </div>
+        ))}
       </dl>
     </footer>
   );

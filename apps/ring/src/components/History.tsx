@@ -1,13 +1,11 @@
-import { TARGET_SECONDS } from "../lib/chain";
+import { UNSIGNED } from "../lib/chain";
 import { signed, type Round } from "../lib/market";
 
 export function History({ rounds }: { readonly rounds: readonly Round[] }) {
   if (rounds.length === 0) {
     return (
       <section className="history">
-        <p className="empty">
-          Waiting for the next Zcash block. Rounds settle as they land.
-        </p>
+        <p className="empty">Reading the chain.</p>
       </section>
     );
   }
@@ -19,7 +17,7 @@ export function History({ rounds }: { readonly rounds: readonly Round[] }) {
           <tr>
             <th>block</th>
             <th>took</th>
-            <th>won</th>
+            <th>taken by</th>
             <th>paid</th>
             <th>you</th>
             <th>result</th>
@@ -29,12 +27,16 @@ export function History({ rounds }: { readonly rounds: readonly Round[] }) {
           {rounds.map((r, i) => (
             <tr key={r.block.height} className={i === 0 ? "fresh" : undefined}>
               <td className="dim">{r.block.height.toLocaleString("en-US")}</td>
-              <td className={r.interval >= TARGET_SECONDS ? "over" : "under"}>
-                {r.interval}s
-              </td>
-              <td className={r.won === "over" ? "over" : "under"}>{r.won}</td>
+              <td className="dim">{r.block.interval === null ? "—" : `${r.block.interval}s`}</td>
+              <td>{r.miner === UNSIGNED ? "unsigned" : r.miner}</td>
               <td className="dim">{r.payout.toFixed(2)}&times;</td>
-              <td>{r.position === null ? "—" : r.position.side}</td>
+              <td>
+                {r.position === null
+                  ? "—"
+                  : r.position.miner === UNSIGNED
+                    ? "unsigned"
+                    : r.position.miner}
+              </td>
               <td className={r.position === null ? "dim" : r.delta >= 0 ? "good" : "bad"}>
                 {r.position === null ? "—" : signed(r.delta)}
               </td>

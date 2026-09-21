@@ -1,35 +1,46 @@
 import { useState } from "react";
 
-import { TARGET_SECONDS } from "../lib/chain";
-import { backtest, signed, zec, type Position, type Round, type Side } from "../lib/market";
+import { UNSIGNED } from "../lib/chain";
+import {
+  backtest,
+  hitRate,
+  signed,
+  type Position,
+  type Round,
+  type Share,
+} from "../lib/market";
 
 interface Props {
   readonly position: Position | null;
-  readonly nextHeight: number | null;
+  readonly shares: readonly Share[];
   readonly rounds: readonly Round[];
-  readonly onTake: (side: Side, stake: number) => void;
+  readonly picked: string | null;
+  readonly onPick: (miner: string) => void;
+  readonly onTake: (miner: string, stake: number) => void;
 }
 
-export function SidePanel({ position, nextHeight, rounds, onTake }: Props) {
-  const [side, setSide] = useState<Side>("under");
+/** The unsigned bucket needs a line of its own, because "nobody signed it" is
+ * a fact about the coinbase and not a claim about who mined it. */
+function label(miner: string): string {
+  return miner === UNSIGNED ? "unsigned" : miner;
+}
+
+export function SidePanel({ position, shares, rounds, picked, onPick, onTake }: Props) {
   const [draft, setDraft] = useState("");
 
   const typed = Number.parseFloat(draft);
-  const valid = Number.isFinite(typed) && typed > 0;
+  const valid = Number.isFinite(typed) && typed > 0 && picked !== null;
 
   if (position !== null) {
     return (
       <section className="panel">
         <h2>position</h2>
         <div className="box sealed-box">
-          <span className={position.side === "under" ? "figure mid under" : "figure mid over"}>
-            {position.side}
-          </span>
-          <span className="unit">{TARGET_SECONDS}s</span>
+          <span className="figure mid">{label(position.miner)}</span>
         </div>
         <dl className="rows">
           <dt>stake</dt>
-          <dd className="bright">{zec(position.stake)}</dd>
+          <dd className="bright">{signed(position.stake).slice(1)}</dd>
           <dt>on block</dt>
           <dd>{position.height.toLocaleString("en-US")}</dd>
           <dt>state</dt>
@@ -41,32 +52,25 @@ export function SidePanel({ position, nextHeight, rounds, onTake }: Props) {
     );
   }
 
-  const settled = rounds.filter((r) => r.interval !== null);
-  const hits = settled.slice(0, 20).filter((r) => r.won === side).length;
-  const of = Math.min(20, settled.length);
-  const projected = backtest(side, rounds);
+  const odds = picked === null ? null : hitRate(picked, rounds);
+  const projected = picked === null ? null : backtest(picked, rounds);
 
   return (
     <section className="panel">
-      <h2>position</h2>
+      <h2>who takes the next block</h2>
 
-      <div className="sides">
-        <button
-          type="button"
-          className={side === "under" ? "side picked under" : "side"}
-          onClick={() => setSide("under")}
-        >
-          <span className="k">under</span>
-          <span className="v">{TARGET_SECONDS}s</span>
-        </button>
-        <button
-          type="button"
-          className={side === "over" ? "side picked over" : "side"}
-          onClick={() => setSide("over")}
-        >
-          <span className="k">over</span>
-          <span className="v">{TARGET_SECONDS}s</span>
-        </button>
+      <div className="miners">
+        {shares.map((s) => (
+          <button
+            key={s.miner}
+            type="button"
+            className={picked === s.miner ? "miner picked" : "miner"}
+            onClick={() => onPick(s.miner)}
+          >
+            <span className="name">{label(s.miner)}</span>
+            <span className="share">{(s.share * 100).toFixed(0)}%</span>
+          </button>
+        ))}
       </div>
 
       <div className="box">
@@ -80,20 +84,20 @@ export function SidePanel({ position, nextHeight, rounds, onTake }: Props) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && valid) onTake(side, typed);
+            if (e.key === "Enter" && valid && picked !== null) onTake(picked, typed);
           }}
         />
         <span className="unit">ZEC</span>
       </div>
 
       <dl className="rows">
-        <dt>{side} won, last {of}</dt>
-        <dd className={of === 0 ? "faint" : hits > of / 2 ? "good" : "bad"}>
-          {of === 0 ? "—" : `${hits}/${of}`}
+        <dt>took, last {odds?.of ?? 20}</dt>
+        <dd className={odds === null ? "faint" : undefined}>
+          {odds === null ? "—" : `${odds.hits}/${odds.of}`}
         </dd>
-        <dt>always {side}, last {of}</dt>
-        <dd className={of === 0 ? "faint" : projected >= 0 ? "good" : "bad"}>
-          {of === 0 ? "—" : signed(projected)}
+        <dt>backing it every block</dt>
+        <dd className={projected === null ? "faint" : projected >= 0 ? "good" : "bad"}>
+          {projected === null ? "—" : signed(projected)}
         </dd>
         <dt>what it pays</dt>
         <dd className="faint">sealed</dd>
@@ -102,8 +106,8 @@ export function SidePanel({ position, nextHeight, rounds, onTake }: Props) {
       <button
         type="button"
         className="primary"
-        disabled={!valid || nextHeight === null}
-        onClick={() => onTake(side, typed)}
+        disabled={!valid}
+        onClick={() => picked !== null && onTake(picked, typed)}
       >
         seal
       </button>

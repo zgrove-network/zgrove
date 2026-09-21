@@ -1,13 +1,20 @@
 import { TARGET_SECONDS, type Block } from "../lib/chain";
 
-/** One ring per block, and the ring's width is how long that block took.
+/** One ring per block, and the ring's width is how long that block took — in
+ * a trunk a wide ring is a long season, here a long wait.
  *
- * In a trunk a wide ring is a long season. Here it is a long wait, which is
- * exactly the quantity the market is on — so the drawing is not a backdrop
- * borrowed from the brand, it is the data. Blocks that ran past the line are
- * drawn in the lit tone: those are the rounds "over" took. */
-export function Rings({ blocks }: { readonly blocks: readonly Block[] }) {
-  const ordered = [...blocks].reverse().filter((b) => b.interval !== null);
+ * The rings a chosen miner found are lit. Picking one and watching its blocks
+ * light up across the trunk shows its cadence: whether it is spread evenly or
+ * arrives in runs, which is the thing a published 24-hour share figure
+ * flattens away. */
+export function Rings({
+  blocks,
+  picked,
+}: {
+  readonly blocks: readonly Block[];
+  readonly picked: string | null;
+}) {
+  const ordered = [...blocks].slice(0, 60).reverse().filter((b) => b.interval !== null);
   if (ordered.length === 0) return null;
 
   const gaps = ordered.map((b) => b.interval ?? 0);
@@ -15,13 +22,18 @@ export function Rings({ blocks }: { readonly blocks: readonly Block[] }) {
 
   const HEART = 22;
   const BUDGET = 440;
-  const MIN_STEP = 3;
+  const MIN_STEP = 2;
   const spare = Math.max(BUDGET - MIN_STEP * ordered.length, 0);
 
   let r = HEART;
   const rings = ordered.map((block, i) => {
     r += MIN_STEP + ((gaps[i] ?? 0) / total) * spare;
-    return { block, r, past: (block.interval ?? 0) >= TARGET_SECONDS };
+    return {
+      block,
+      r,
+      lit: picked !== null && block.miner === picked,
+      slow: (block.interval ?? 0) >= TARGET_SECONDS,
+    };
   });
 
   return (
@@ -44,15 +56,15 @@ export function Rings({ blocks }: { readonly blocks: readonly Block[] }) {
       </defs>
 
       <g mask="url(#ring-mask)" fill="none">
-        {rings.map(({ block, r: radius, past }) => (
+        {rings.map(({ block, r: radius, lit, slow }) => (
           <circle
             key={block.height}
             cx={520}
             cy={196}
             r={radius}
-            stroke={past ? "var(--ring-lit)" : "var(--ring)"}
-            strokeWidth={past ? 1.6 : 0.9}
-            opacity={past ? 0.44 : 0.24}
+            stroke={lit ? "var(--good)" : slow ? "var(--ring-lit)" : "var(--ring)"}
+            strokeWidth={lit ? 2 : slow ? 1.3 : 0.8}
+            opacity={lit ? 0.62 : slow ? 0.3 : 0.2}
           />
         ))}
       </g>

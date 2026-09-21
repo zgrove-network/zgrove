@@ -1,114 +1,131 @@
-/** A pari-mutuel market on how long the next Zcash block takes.
+/** A pari-mutuel market on which miner takes the next Zcash block.
  *
- * Everyone who took the winning side splits the losing side's stakes in
- * proportion to what they put in, less the house's cut. Nobody is trading
- * against the house, which is why the house cannot want a particular
- * outcome — and could not reach it if it did.
+ * Everyone who backed the winner splits the rest of the pool in proportion to
+ * what they put in, less the house's cut. Nobody trades against the house,
+ * so the house cannot want an outcome — and could not reach it if it did,
+ * because reaching it means buying hashrate.
  *
- * Positions ride in shielded memos, so until a round settles nobody can see
- * which way the money went. On an open book the crowd is visible and people
- * follow it; here they have to decide from the chain's own history, which is
- * printed on the screen. */
+ * Stakes ride in shielded memos, so until a block lands nobody can see how
+ * the pool leans. That matters here in a way it would not on a coin flip:
+ * published pool shares are computed over 24-hour windows, so a miner moving
+ * between pools is visible in the block stream hours before any dashboard
+ * catches up. Somebody watching the chain knows something. Sealing the book
+ * is what lets them act on it without giving it away. */
 
-import { TARGET_SECONDS, type Block } from "./chain";
-
-export type Side = "under" | "over";
+import { UNSIGNED, type Block } from "./chain";
 
 /** The house's cut of the losing pool. */
 export const RAKE = 0.03;
 
-export function winningSide(interval: number): Side {
-  return interval < TARGET_SECONDS ? "under" : "over";
-}
+/** How many blocks the displayed shares look back over. */
+export const WINDOW = 100;
 
-export interface Pools {
-  readonly under: number;
-  readonly over: number;
+/** Outcomes shown as their own button. Everything rarer is bucketed, because
+ * a market with thirty outcomes has thirty empty pools. */
+export const SHOWN = 5;
+
+/** The bucket for miners too rare to list. */
+export const FIELD = "the field";
+
+export interface Share {
+  readonly miner: string;
+  readonly blocks: number;
+  readonly share: number;
 }
 
 export interface Position {
   readonly height: number;
-  readonly side: Side;
+  readonly miner: string;
   readonly stake: number;
 }
 
 export interface Round {
   readonly block: Block;
-  readonly interval: number;
-  readonly won: Side;
-  readonly pools: Pools;
-  /** What one unit staked on the winning side returned, gross. */
+  readonly miner: string;
+  readonly pools: ReadonlyMap<string, number>;
   readonly payout: number;
   readonly position: Position | null;
   readonly delta: number;
 }
 
-/** What a unit on `side` pays if that side wins, given the pools. */
-export function payoutFor(pools: Pools, side: Side): number {
-  const mine = side === "under" ? pools.under : pools.over;
-  const theirs = side === "under" ? pools.over : pools.under;
+/** Recent share by miner, commonest first, with everything past the listed
+ * few folded into one bucket. */
+export function sharesOver(blocks: readonly Block[]): readonly Share[] {
+  const seen = blocks.slice(0, WINDOW);
+  if (seen.length === 0) return [];
+
+  const counts = new Map<string, number>();
+  for (const b of seen) counts.set(b.miner, (counts.get(b.miner) ?? 0) + 1);
+
+  const ranked = [...counts.entries()]
+    .map(([miner, count]) => ({ miner, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // The unsigned bucket is an outcome in its own right, never folded away.
+  const listed = ranked.filter((r) => r.miner === UNSIGNED).concat(
+    ranked.filter((r) => r.miner !== UNSIGNED).slice(0, SHOWN),
+  );
+  const rest = ranked
+    .filter((r) => !listed.includes(r))
+    .reduce((sum, r) => sum + r.count, 0);
+
+  const out: Share[] = listed.map((r) => ({
+    miner: r.miner,
+    blocks: r.count,
+    share: r.count / seen.length,
+  }));
+
+  if (rest > 0) {
+    out.push({ miner: FIELD, blocks: rest, share: rest / seen.length });
+  }
+  return out;
+}
+
+/** Which listed outcome a block settles to. */
+export function outcomeOf(block: Block, listed: readonly Share[]): string {
+  return listed.some((s) => s.miner === block.miner) ? block.miner : FIELD;
+}
+
+export function payoutFor(pools: ReadonlyMap<string, number>, outcome: string): number {
+  const mine = pools.get(outcome) ?? 0;
   if (mine <= 0) return 0;
-  return 1 + (theirs / mine) * (1 - RAKE);
+  let total = 0;
+  for (const v of pools.values()) total += v;
+  return 1 + ((total - mine) / mine) * (1 - RAKE);
 }
 
 export function settle(
   block: Block,
-  interval: number,
-  pools: Pools,
+  outcome: string,
+  pools: ReadonlyMap<string, number>,
   position: Position | null,
 ): Round {
-  const won = winningSide(interval);
-  const payout = payoutFor(pools, won);
+  const payout = payoutFor(pools, outcome);
 
   let delta = 0;
   if (position !== null) {
-    delta = position.side === won ? position.stake * (payout - 1) : -position.stake;
+    delta = position.miner === outcome ? position.stake * (payout - 1) : -position.stake;
   }
 
-  return { block, interval, won, pools, payout, position, delta };
+  return { block, miner: outcome, pools, payout, position, delta };
 }
 
-export interface Stats {
-  readonly counted: number;
-  readonly under: number;
-  readonly median: number;
-  readonly mean: number;
-  readonly longest: number;
-}
-
-export function statsOver(blocks: readonly Block[]): Stats {
-  const gaps = blocks
-    .map((b) => b.interval)
-    .filter((v): v is number => v !== null);
-
-  if (gaps.length === 0) {
-    return { counted: 0, under: 0, median: 0, mean: 0, longest: 0 };
-  }
-
-  const sorted = [...gaps].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const median =
-    sorted.length % 2 === 0
-      ? ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2
-      : (sorted[mid] ?? 0);
-
-  return {
-    counted: gaps.length,
-    under: gaps.filter((v) => v < TARGET_SECONDS).length,
-    median,
-    mean: gaps.reduce((a, b) => a + b, 0) / gaps.length,
-    longest: sorted[sorted.length - 1] ?? 0,
-  };
-}
-
-/** How a side would have done over the recent run, staking one unit every
- * block at the pools each round actually cleared at. */
-export function backtest(side: Side, rounds: readonly Round[], over = 20): number {
+/** What backing one miner every block would have returned lately. */
+export function backtest(miner: string, rounds: readonly Round[], over = 20): number {
   let total = 0;
   for (const r of rounds.slice(0, over)) {
-    total += r.won === side ? payoutFor(r.pools, side) - 1 : -1;
+    total += r.miner === miner ? payoutFor(r.pools, miner) - 1 : -1;
   }
   return total;
+}
+
+export function hitRate(
+  miner: string,
+  rounds: readonly Round[],
+  over = 20,
+): { hits: number; of: number } {
+  const seen = rounds.slice(0, over);
+  return { hits: seen.filter((r) => r.miner === miner).length, of: seen.length };
 }
 
 export function zec(value: number): string {

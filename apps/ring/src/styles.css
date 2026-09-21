@@ -364,44 +364,47 @@ button.ghost:hover { color: var(--bright); border-color: var(--line); }
 
 /* ------------------------------------------------------- ring additions */
 
-/* The two sides of the market. Under and over get colours that mean the same
-   thing everywhere on the screen: the clock, the bars, the rings, the table. */
 .under { color: var(--good); }
 .over { color: var(--bad); }
-
 .badge.live { border-color: #2f4a35; color: #8fae7e; }
 
-.figure.over { color: var(--bad); }
 .v.big.sealed { color: #4d4a44; letter-spacing: 0.06em; }
-.v.big.under { color: var(--good); }
-.v.big.over { color: var(--bad); }
+.clock.under { color: var(--good); }
+.clock.faint { color: var(--faint); }
+.clock.under, .clock.faint { font-size: clamp(20px, 2.2vw, 28px); }
 
-.demand-bar > span.over { background: var(--bad); }
-
-/* Pick a side before staking. */
-.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
-.side { padding: 8px 12px; min-height: 48px; text-align: left; }
-.side .k { font-size: 11px; }
-.side .v { font-size: 15px; margin-top: 2px; }
-.side.picked.under { border-color: #3c5142; background: #1c2620; color: var(--bright); }
-.side.picked.over { border-color: #533531; background: #241a19; color: var(--bright); }
+/* The outcomes. Recent share sits beside each name, because it is the only
+   number a viewer has to price with — what the pool is paying is sealed. */
+.miners { display: grid; gap: 4px; margin-bottom: 10px; }
+.miner {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2ch;
+  padding: 7px 11px;
+  min-height: 38px;
+  text-align: left;
+}
+.miner .name { color: var(--text); }
+.miner .share { color: var(--faint); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.miner.picked { border-color: #3c5142; background: #1c2620; }
+.miner.picked .name { color: var(--bright); }
+.miner.picked .share { color: var(--good); }
 
 .sealed-box .figure.mid { font-size: 22px; }
 
-/* The line the market is on, drawn across the bars it is measured against. */
-.spark { position: relative; }
-.spark-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--dim);
-  opacity: 0.55;
+/* Share of the last blocks, one strip per outcome, sized by share. */
+.shares { display: flex; gap: 3px; height: 34px; }
+.share-row { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; gap: 4px; }
+.share-bar { display: block; height: 14px; background: #34322d; }
+.share-row.lit .share-bar { background: var(--good); }
+.share-name {
+  font-size: 10px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.spark-bar.over { background: #6a3b35; }
-
-/* "winning now" is a word, not a figure, so it does not want tabular width
-   or the size a clock wants. */
-.clock.under, .clock.over { font-size: clamp(22px, 2.4vw, 30px); }
+.share-row.lit .share-name { color: var(--good); }
 
 .history .empty { margin: 0; padding: 22px; color: var(--dim); }
