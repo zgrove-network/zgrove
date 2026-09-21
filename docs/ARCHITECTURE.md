@@ -87,10 +87,24 @@ less work, not turned away.
 A contributor's share of a payout is their accepted share weight, valued in USD
 at the moment each share was submitted, over the total. Fee comes off the top.
 
-Stake does not multiply that. It gates eligibility — priority when the most
-profitable algorithm has limited slots, access to a different fee tier, and
-later the trusted-work routing that sensitive jobs would need. Two properties
-follow, and they are the point:
+Stake does not multiply that. It buys a fee tier: what the pool keeps from an
+account's own share, and nothing else. The fee comes out of each account's
+share rather than off the top, so a staker's discount lands on the pool's cut
+and never on another contributor's payout — equal work is an equal gross share
+whatever either party holds.
+
+Priority is deliberately not on the list. Mining has no queue: every
+contributor can mine the same coin at the same time, so there is no scarce
+slot to hand out, and promising one would be promising something with nothing
+behind it.
+
+The wallet a tier is read from is bound by signature. A binding nobody signs
+is a discount anyone can take by typing a richer address. It binds to the
+account id rather than to the payout address, so what a public stake lets an
+observer infer is "this person mines here" and not "this person earned that".
+
+Two properties follow from stake buying a rate rather than a share, and they
+are the point:
 
 - No work is no payout, whatever the stake. A multiplier applied to zero is
   zero.

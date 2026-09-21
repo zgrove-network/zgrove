@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { ACCOUNT_USAGE, ENROLL_USAGE, runAccount, runEnroll } from "./enroll.js";
+import { BIND_USAGE, runBindWallet } from "./bind.js";
 import { INIT_USAGE, runInit } from "./init.js";
 import { PAYOUT_USAGE, runPayout } from "./payout.js";
 import { PROBE_USAGE, runProbe } from "./probe.js";
@@ -13,6 +14,7 @@ const USAGE = `zgrove — operator commands for the orchestrator
   zgrove stats [options]     per-worker share accounting
   zgrove account [options]   create a contributor account
   zgrove enroll [options]    bind a rig's key to an account
+  zgrove bind-wallet [opts]  prove a Solana wallet for an account's fee tier
   zgrove probe [options]     learn a real pool's dialect without mining
   zgrove payout [options]    work out what each account is owed (sends nothing)
   zgrove send [options]      pay a recorded round (dry run unless --confirm)
@@ -42,6 +44,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return help(rest, ACCOUNT_USAGE) ?? runAccount(rest, process.env);
     case "enroll":
       return help(rest, ENROLL_USAGE) ?? runEnroll(rest, process.env);
+    case "bind-wallet":
+      return help(rest, BIND_USAGE) ?? runBindWallet(rest, process.env);
     case "probe":
       return help(rest, PROBE_USAGE) ?? runProbe(rest);
     case "payout":

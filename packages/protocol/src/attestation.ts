@@ -1,4 +1,5 @@
 import {
+  createPrivateKey,
   createPublicKey,
   generateKeyPairSync,
   sign,
@@ -14,6 +15,9 @@ import {
 
 /** The fixed DER header on an Ed25519 SPKI key; the 32 raw bytes follow it. */
 const SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+
+/** The same for a PKCS#8 private key, whose body is the 32-byte seed. */
+const PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
 
 const RAW_PUBLIC_KEY_BYTES = 32;
 
@@ -55,6 +59,22 @@ export function generateWorkerKeyPair(): WorkerKeyPair {
       .export({ type: "pkcs8", format: "pem" })
       .toString(),
   };
+}
+
+/**
+ * Rebuilds a private key from its raw 32-byte seed, which is how wallets that
+ * are not Node store one — a Solana CLI keypair file, for instance, is the
+ * seed followed by the public key.
+ */
+export function privateKeyFromSeed(seed: Uint8Array): KeyObject {
+  if (seed.length !== RAW_PUBLIC_KEY_BYTES) {
+    throw new Error(`An ed25519 seed is ${RAW_PUBLIC_KEY_BYTES} bytes, got ${seed.length}`);
+  }
+  return createPrivateKey({
+    key: Buffer.concat([PKCS8_PREFIX, Buffer.from(seed)]),
+    format: "der",
+    type: "pkcs8",
+  });
 }
 
 /** Raw 32 bytes in base64url: short, and legal in a stratum login. */

@@ -3,10 +3,13 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { Registry } from "@zgrove/db";
 import {
   ATTESTATION_MAX_AGE_SECONDS,
+  isSolanaAddress,
   verifyAttestation,
+  verifySolanaBinding,
   type Attestation,
   type OrchestratorMessage,
   type RejectReason,
+  type SolanaBinding,
 } from "@zgrove/protocol";
 
 import { log } from "../log.js";
@@ -75,6 +78,9 @@ async function handle(
       return;
     case "/v1/attest":
       handleAttest(body, response, options, deps);
+      return;
+    case "/v1/bind-wallet":
+      handleBindWallet(body, response, deps);
       return;
     default:
       send(response, 404, { type: "reject", reason: "malformed" });
@@ -165,6 +171,88 @@ function handleAttest(
     stratumHost: options.stratumHost,
     stratumPort: options.stratumPort,
   });
+}
+
+/**
+ * Binds a Solana wallet to an account, so the wallet's balance can decide the
+ * account's fee tier. Same shape as a worker attestation and the same reason
+ * for it: a wallet nobody signs for is a discount anyone can take by typing a
+ * richer address.
+ */
+function handleBindWallet(
+  body: Record<string, unknown>,
+  response: ServerResponse,
+  deps: ControlServerDeps,
+): void {
+  const binding = readBinding(body["binding"]);
+  const signature = body["signature"];
+
+  if (binding === null || typeof signature !== "string") {
+    send(response, 400, { type: "reject", reason: "malformed" });
+    return;
+  }
+
+  const now = deps.now();
+
+  // Spent first, as with an attestation: a nonce that survives a failed
+  // attempt can be attacked repeatedly.
+  if (!deps.challenges.consume(binding.nonce, binding.solanaAddress, now)) {
+    send(response, 401, { type: "reject", reason: "unknown-challenge" });
+    return;
+  }
+
+  if (Math.abs(now - binding.issuedAt) > ATTESTATION_MAX_AGE_SECONDS) {
+    send(response, 401, { type: "reject", reason: "stale-attestation" });
+    return;
+  }
+
+  if (!isSolanaAddress(binding.solanaAddress)) {
+    send(response, 400, { type: "reject", reason: "malformed" });
+    return;
+  }
+
+  if (!verifySolanaBinding(binding, signature)) {
+    send(response, 401, { type: "reject", reason: "bad-signature" });
+    return;
+  }
+
+  if (deps.registry.findAccount(binding.accountId) === null) {
+    send(response, 401, { type: "reject", reason: "unknown-account" });
+    return;
+  }
+
+  deps.registry.bindSolanaAddress(binding.accountId, binding.solanaAddress, now);
+  log("info", "control.wallet_bound", { account: binding.accountId });
+
+  send(response, 200, {
+    type: "bound",
+    accountId: binding.accountId,
+    solanaAddress: binding.solanaAddress,
+  });
+}
+
+function readBinding(value: unknown): SolanaBinding | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const nonce = record["nonce"];
+  const accountId = record["accountId"];
+  const solanaAddress = record["solanaAddress"];
+  const issuedAt = record["issuedAt"];
+
+  if (
+    typeof nonce !== "string" ||
+    typeof accountId !== "string" ||
+    typeof solanaAddress !== "string" ||
+    typeof issuedAt !== "number" ||
+    !Number.isFinite(issuedAt)
+  ) {
+    return null;
+  }
+
+  return { nonce, accountId, solanaAddress, issuedAt };
 }
 
 /**

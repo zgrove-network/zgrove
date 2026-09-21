@@ -3,8 +3,12 @@ import type { Server } from "node:http";
 import { test } from "node:test";
 
 import { createRegistry, migrate, openDatabase } from "@zgrove/db";
+import { sign } from "node:crypto";
+
 import {
   SESSION_TOKEN_PREFIX,
+  encodeBase58,
+  encodeSolanaBinding,
   generateWorkerKeyPair,
   signAttestation,
   type Attestation,
@@ -264,6 +268,104 @@ test("a body past the ceiling and a junk body are both refused", async () => {
 
     const wrongPath = await post(harness.url, "/v1/nope", {});
     assert.equal(wrongPath.status, 404);
+  } finally {
+    await harness.stop();
+  }
+});
+
+test("a wallet that signs the challenge is bound to the account", async () => {
+  const harness = await startControl();
+  try {
+    // A Solana address is a base58 ed25519 key, so a keypair stands in for a
+    // wallet: the signature is what is being tested, not the wallet software.
+    const wallet = generateWorkerKeyPair();
+    const address = encodeBase58(Buffer.from(wallet.publicKey, "base64url"));
+
+    const { body: challenge } = await post(harness.url, "/v1/challenge", {
+      publicKey: address,
+    });
+
+    const binding = {
+      nonce: challenge["nonce"] as string,
+      accountId: ACCOUNT,
+      solanaAddress: address,
+      issuedAt: NOW,
+    };
+
+    const { status, body } = await post(harness.url, "/v1/bind-wallet", {
+      binding,
+      signature: sign(null, encodeSolanaBinding(binding), wallet.privateKeyPem).toString(
+        "base64url",
+      ),
+    });
+
+    assert.equal(status, 200);
+    assert.equal(body["type"], "bound");
+    assert.equal(body["solanaAddress"], address);
+  } finally {
+    await harness.stop();
+  }
+});
+
+test("a wallet nobody holds cannot be bound", async () => {
+  const harness = await startControl();
+  try {
+    const mine = generateWorkerKeyPair();
+    const theirs = generateWorkerKeyPair();
+    const richAddress = encodeBase58(Buffer.from(theirs.publicKey, "base64url"));
+
+    const { body: challenge } = await post(harness.url, "/v1/challenge", {
+      publicKey: richAddress,
+    });
+
+    // Claiming a wallet with a balance, signing with one without. This is the
+    // whole attack a fee tier invites.
+    const binding = {
+      nonce: challenge["nonce"] as string,
+      accountId: ACCOUNT,
+      solanaAddress: richAddress,
+      issuedAt: NOW,
+    };
+
+    const { status, body } = await post(harness.url, "/v1/bind-wallet", {
+      binding,
+      signature: sign(null, encodeSolanaBinding(binding), mine.privateKeyPem).toString(
+        "base64url",
+      ),
+    });
+
+    assert.equal(status, 401);
+    assert.equal(body["reason"], "bad-signature");
+  } finally {
+    await harness.stop();
+  }
+});
+
+test("a wallet cannot be bound to an account that does not exist", async () => {
+  const harness = await startControl();
+  try {
+    const wallet = generateWorkerKeyPair();
+    const address = encodeBase58(Buffer.from(wallet.publicKey, "base64url"));
+    const { body: challenge } = await post(harness.url, "/v1/challenge", {
+      publicKey: address,
+    });
+
+    const binding = {
+      nonce: challenge["nonce"] as string,
+      accountId: "acct_does_not_exist",
+      solanaAddress: address,
+      issuedAt: NOW,
+    };
+
+    const { status, body } = await post(harness.url, "/v1/bind-wallet", {
+      binding,
+      signature: sign(null, encodeSolanaBinding(binding), wallet.privateKeyPem).toString(
+        "base64url",
+      ),
+    });
+
+    assert.equal(status, 401);
+    assert.equal(body["reason"], "unknown-account");
   } finally {
     await harness.stop();
   }

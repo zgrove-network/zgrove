@@ -85,9 +85,16 @@ export type RejectReason =
   | "unknown-challenge"
   | "malformed";
 
+export interface BoundMessage {
+  readonly type: "bound";
+  readonly accountId: string;
+  readonly solanaAddress: string;
+}
+
 export type OrchestratorMessage =
   | ChallengeMessage
   | SessionMessage
+  | BoundMessage
   | RejectMessage;
 
 /**
