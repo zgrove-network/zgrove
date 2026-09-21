@@ -266,3 +266,131 @@ function guardAmount(value: number, name: string): void {
     throw new Error(`${name} must be a non-negative integer of zatoshi`);
   }
 }
+
+export type DispatchState = "planned" | "sending" | "sent" | "failed";
+
+export interface RecordedRound {
+  readonly id: number;
+  readonly periodStart: number;
+  readonly periodEnd: number;
+  readonly totalZat: number;
+  readonly totalWeight: number;
+  readonly dispatchState: DispatchState;
+  readonly operationId: string | null;
+  readonly txid: string | null;
+  readonly fromAddress: string | null;
+  readonly entries: readonly RecordedEntry[];
+}
+
+export interface RecordedEntry {
+  readonly accountId: string;
+  readonly payoutAddress: string;
+  readonly amountZat: number;
+  readonly carriedOutZat: number;
+}
+
+export interface Dispatch {
+  load(roundId: number): RecordedRound | null;
+  /**
+   * Moves a round from planned to sending, or returns false. Conditional in
+   * the UPDATE itself, so two processes cannot both believe they won it.
+   */
+  begin(roundId: number, fromAddress: string, atSeconds: number): boolean;
+  recordOperation(roundId: number, operationId: string): void;
+  complete(roundId: number, txid: string): void;
+  fail(roundId: number): void;
+}
+
+export function createDispatch(db: Db): Dispatch {
+  const selectRound = db.prepare<[number], RoundRow>(`
+    SELECT id, period_start, period_end, total_zat, total_weight,
+           dispatch_state, operation_id, txid, from_address
+    FROM payout_rounds WHERE id = ?
+  `);
+
+  const selectEntries = db.prepare<[number], EntryRow>(`
+    SELECT account_id, payout_address, amount_zat, carried_out_zat
+    FROM payout_entries WHERE round_id = ? ORDER BY account_id
+  `);
+
+  // The guard against paying a round twice. A round already sending, sent or
+  // failed does not match, so the update changes nothing and the caller is
+  // told it did not win rather than proceeding on an assumption.
+  const beginSend = db.prepare(`
+    UPDATE payout_rounds
+    SET dispatch_state = 'sending', from_address = ?, dispatched_at = ?
+    WHERE id = ? AND dispatch_state = 'planned'
+  `);
+
+  const setOperation = db.prepare(
+    "UPDATE payout_rounds SET operation_id = ? WHERE id = ?",
+  );
+  const setSent = db.prepare(
+    "UPDATE payout_rounds SET dispatch_state = 'sent', txid = ?, state = 'sent' WHERE id = ?",
+  );
+  const setFailed = db.prepare(
+    "UPDATE payout_rounds SET dispatch_state = 'failed' WHERE id = ?",
+  );
+
+  return {
+    load(roundId) {
+      const row = selectRound.get(roundId);
+      if (row === undefined) {
+        return null;
+      }
+
+      return {
+        id: row.id,
+        periodStart: row.period_start,
+        periodEnd: row.period_end,
+        totalZat: row.total_zat,
+        totalWeight: row.total_weight,
+        dispatchState: row.dispatch_state,
+        operationId: row.operation_id,
+        txid: row.txid,
+        fromAddress: row.from_address,
+        entries: selectEntries.all(roundId).map((entry) => ({
+          accountId: entry.account_id,
+          payoutAddress: entry.payout_address,
+          amountZat: entry.amount_zat,
+          carriedOutZat: entry.carried_out_zat,
+        })),
+      };
+    },
+
+    begin(roundId, fromAddress, atSeconds) {
+      return beginSend.run(fromAddress, atSeconds, roundId).changes === 1;
+    },
+
+    recordOperation(roundId, operationId) {
+      setOperation.run(operationId, roundId);
+    },
+
+    complete(roundId, txid) {
+      setSent.run(txid, roundId);
+    },
+
+    fail(roundId) {
+      setFailed.run(roundId);
+    },
+  };
+}
+
+interface RoundRow {
+  readonly id: number;
+  readonly period_start: number;
+  readonly period_end: number;
+  readonly total_zat: number;
+  readonly total_weight: number;
+  readonly dispatch_state: DispatchState;
+  readonly operation_id: string | null;
+  readonly txid: string | null;
+  readonly from_address: string | null;
+}
+
+interface EntryRow {
+  readonly account_id: string;
+  readonly payout_address: string;
+  readonly amount_zat: number;
+  readonly carried_out_zat: number;
+}

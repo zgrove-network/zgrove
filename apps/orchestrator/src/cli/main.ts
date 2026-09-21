@@ -2,6 +2,7 @@
 import { ACCOUNT_USAGE, ENROLL_USAGE, runAccount, runEnroll } from "./enroll.js";
 import { PAYOUT_USAGE, runPayout } from "./payout.js";
 import { PROBE_USAGE, runProbe } from "./probe.js";
+import { SEND_USAGE, runSend } from "./send.js";
 import { runStats } from "./stats.js";
 
 const USAGE = `zgrove — operator commands for the orchestrator
@@ -11,6 +12,7 @@ const USAGE = `zgrove — operator commands for the orchestrator
   zgrove enroll [options]    bind a rig's key to an account
   zgrove probe [options]     learn a real pool's dialect without mining
   zgrove payout [options]    work out what each account is owed (sends nothing)
+  zgrove send [options]      pay a recorded round (dry run unless --confirm)
 
 Run a command with --help for its options.
 `;
@@ -38,6 +40,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return help(rest, PROBE_USAGE) ?? runProbe(rest);
     case "payout":
       return help(rest, PAYOUT_USAGE) ?? runPayout(rest, process.env);
+    case "send":
+      return help(rest, SEND_USAGE) ?? runSend(rest, process.env);
     case undefined:
     case "--help":
     case "-h":
