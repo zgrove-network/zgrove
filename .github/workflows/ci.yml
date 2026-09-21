@@ -38,10 +38,13 @@ jobs:
       # which is slow but is also the install a contributor would do.
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm -r typecheck
-
-      # Builds first because the suites run against dist, and because a
-      # package that typechecks can still fail to emit.
+      # Build first. A package typechecks against its dependencies' emitted
+      # declarations, so on a clean checkout there is nothing to typecheck
+      # against until they exist. Locally this passes either way, because
+      # dist is always left over from the last build — which is precisely the
+      # difference a clean runner exists to find.
       - run: pnpm -r build
+
+      - run: pnpm -r typecheck
 
       - run: pnpm -r --if-present test

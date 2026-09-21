@@ -30,7 +30,8 @@ buy, and what a fake looks like.
 
     pnpm install
     zgrove init      # creates the database and .env, says what still needs a value
-    pnpm build
+    pnpm build       # before typecheck: packages check against emitted declarations
+    pnpm typecheck
     pnpm test
 
 `pnpm test` builds every package and runs the suites, including an end-to-end
