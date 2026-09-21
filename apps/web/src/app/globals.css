@@ -78,27 +78,28 @@ th, td { text-align: right; padding: 3px 2ch 3px 0; }
 th:first-child, td:first-child { text-align: left; padding-right: 3ch; }
 th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
 
-/* sealed box — a live board rather than a document, so this one page runs
-   wider than the column the prose sits in. Everything else is the vocabulary
-   already established above: dashed rules, indentation, no panels. */
-.page.wide { max-width: 104ch; }
+/* sealed box — a board somebody uses, not a document about a board. The page
+   runs wider than the prose column because it is a screen, and the vocabulary
+   stays what the rest of the site established: dashed rules, monospace,
+   hierarchy from indentation. */
+.page.wide { max-width: 112ch; }
 .narrow { max-width: 74ch; }
 
-.simline { color: var(--dim); margin: 0 0 24px; }
+.simline { color: var(--dim); margin: 0 0 22px; }
 .simline b { color: var(--bad); font-weight: 400; }
 
-.board { border: 1px dashed #2a2926; padding: 20px 3ch 22px; margin: 0 0 30px; }
-.boardline { display: flex; flex-wrap: wrap; gap: 1ch 4ch; color: var(--dim); }
+.board { border: 1px dashed #2a2926; padding: 18px 3ch 22px; margin: 0 0 20px; }
+.boardline { display: flex; flex-wrap: wrap; gap: 2px 4ch; color: var(--dim); }
 .boardline b { color: var(--text); font-weight: 400; }
 
-/* The two numbers that matter face each other: what you cannot know, and how
-   long until you do. Everything else on the page is smaller than these. */
-.stage { display: flex; align-items: flex-end; gap: 4ch; margin: 30px 0 4px; }
+/* The two numbers that matter face each other: what cannot be known, and how
+   long until it is. Nothing else on the page comes near this size. */
+.stage { display: flex; align-items: flex-end; gap: 4ch; margin: 26px 0 0; }
 .stage > div { min-width: 0; }
 .stage-fill { flex-grow: 1; }
 
 .figure {
-  font-size: clamp(38px, 7vw, 68px);
+  font-size: clamp(38px, 6.4vw, 64px);
   line-height: 1;
   color: var(--bright);
   font-variant-numeric: tabular-nums;
@@ -106,6 +107,7 @@ th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
 }
 .figure.waiting { color: #4b4944; letter-spacing: 0.08em; }
 .figure.hit { color: var(--good); }
+.figure.small { font-size: 32px; margin-top: 4px; }
 .caret { animation: blink 1.1s steps(1, end) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -114,7 +116,7 @@ th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
 .under b { color: var(--bright); font-weight: 400; }
 
 .clock {
-  font-size: clamp(30px, 5vw, 46px);
+  font-size: clamp(30px, 4.6vw, 44px);
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -122,8 +124,45 @@ th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
 }
 .clock.soon { color: var(--bad); }
 
-.bidrow { display: flex; flex-wrap: wrap; gap: 18px 3ch; align-items: flex-end; margin: 0 0 6px; }
-.bidrow > div { width: 22ch; }
+/* The two things a bidder needs side by side: what a number would have done,
+   and what the going rate has been. */
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(42ch, 100%), 1fr)); gap: 20px; margin-bottom: 20px; }
+.panel { border: 1px dashed #2a2926; padding: 16px 3ch 20px; }
+.panel h3 { font-size: 14px; font-weight: 400; color: var(--bright); margin: 0 0 14px; }
+.panel h3::before { content: "## "; color: var(--dim); }
+.panel p { margin: 12px 0 0; }
+
+.bidrow { display: flex; flex-wrap: wrap; gap: 12px 2ch; align-items: center; }
+.bidrow input { width: 14ch; flex-grow: 1; font-size: 18px; }
+
+.reading { margin-top: 16px; min-height: 6.8em; }
+.reading b { font-weight: 400; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 1ch; margin-top: 4px; }
+.chips button { font-size: 13px; padding: 8px 2ch; color: var(--dim); }
+.chips button:hover { color: var(--text); }
+
+/* Bars rather than block characters: forty of those clip at any size big
+   enough to read, and these scale to whatever width the panel gets. */
+.chart { display: flex; align-items: flex-end; gap: 2px; height: 66px; }
+.chart-bar { flex: 1 1 0; min-width: 0; background: #33322e; }
+.chart-bar.found { background: var(--good); }
+.chart-note { margin-top: 12px !important; }
+
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 0 3ch; margin-top: 18px; }
+.kv > span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+
+.you {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 4ch;
+  border: 1px dashed #2a2926;
+  padding: 12px 3ch;
+  color: var(--dim);
+  margin-bottom: 8px;
+}
+.you b { font-weight: 400; }
+.you-end { margin-left: auto; }
 
 button {
   background: transparent;
@@ -136,6 +175,7 @@ button {
   cursor: pointer;
 }
 button:hover { color: var(--bright); border-color: var(--dim); }
+button:disabled { color: #4b4944; border-color: #26251f; cursor: default; }
 
 .linkish {
   border: 0; padding: 0; min-height: 0;
@@ -144,28 +184,24 @@ button:hover { color: var(--bright); border-color: var(--dim); }
   text-underline-offset: 3px;
   text-decoration-color: var(--dim);
 }
+.linkish:hover { border: 0; }
 
-/* Five columns of figures do not fit a phone, and shrinking them to fit
-   would make the one thing worth reading unreadable. It scrolls instead. */
+/* Five columns of figures do not fit a phone, and shrinking them to fit makes
+   the one thing worth reading unreadable. It scrolls instead. */
 .scroller { overflow-x: auto; }
-table.wide { margin-left: 0; width: 100%; min-width: 60ch; max-width: 88ch; }
+table.wide { margin-left: 0; width: 100%; min-width: 60ch; max-width: 92ch; }
 /* The settled row arrives lit and cools into the table. */
 .fresh td { animation: land 1s ease-out; }
 @keyframes land { from { color: var(--bright); } }
 
-.foot { margin-top: 20px; }
+.brightish { color: var(--bright); }
 
-/* Side by side, the sealed figure and the clock are the whole tension of the
-   page. Narrower than this they collide, so they stack and keep their size
-   rather than shrinking into the paragraph around them. */
 @media (max-width: 660px) {
-  .stage { flex-direction: column; align-items: stretch; gap: 20px; margin-top: 24px; }
+  .stage { flex-direction: column; align-items: stretch; gap: 18px; }
   .clock, .under.right { text-align: left; }
-  .bidrow > div { width: 100%; }
+  .you-end { margin-left: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .caret, .fresh td { animation: none; }
 }
-
-.brightish { color: var(--bright); }
