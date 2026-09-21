@@ -12,7 +12,7 @@ export function TopBar({ round, block, speed, running, onToggle }: Props) {
   return (
     <header className="topbar">
       <Mark />
-      <span className="wordmark">sealed box</span>
+      <span className="wordmark">grain</span>
 
       <span className="tb">
         <span className="k">round</span>

@@ -1,5 +1,5 @@
 {
-  "name": "@zgrove/sealed",
+  "name": "@zgrove/grain",
   "version": "0.0.0",
   "private": true,
   "type": "module",

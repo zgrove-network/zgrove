@@ -15,20 +15,7 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
-  apps/orchestrator:
-    dependencies:
-      '@zgrove/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@zgrove/protocol':
-        specifier: workspace:*
-        version: link:../../packages/protocol
-    devDependencies:
-      typescript:
-        specifier: ^5.6.3
-        version: 5.9.3
-
-  apps/sealed:
+  apps/grain:
     dependencies:
       react:
         specifier: ^19.1.1
@@ -52,6 +39,19 @@ importers:
       vite:
         specifier: ^6.0.7
         version: 6.4.3(@types/node@22.20.4)
+
+  apps/orchestrator:
+    dependencies:
+      '@zgrove/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@zgrove/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
   apps/web:
     dependencies:
