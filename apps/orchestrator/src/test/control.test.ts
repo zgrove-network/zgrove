@@ -55,11 +55,16 @@ async function startControl(register = true): Promise<Harness> {
       maxBodyBytes: 8 * 1024,
       stratumHost: "stratum.example",
       stratumPort: 3333,
+      algo: "autolykos2",
+      upstream: "upstream.example",
+      poolWindowSeconds: 3600,
+      workPerDifficulty: 2 ** 32,
     },
     {
       challenges: createChallengeStore({ ttlSeconds: 60, maxOutstanding: 16 }),
       sessions: createSessionStore({ ttlSeconds: 3600, maxSessions: 16 }),
       registry,
+      statsBetween: () => [],
       now: () => now,
     },
   );
@@ -369,4 +374,26 @@ test("a wallet cannot be bound to an account that does not exist", async () => {
   } finally {
     await harness.stop();
   }
+});
+
+test("the public summary is readable by anyone, with no token and no names", async (t) => {
+  // It sits on the same server as the attestation exchange, which hands out
+  // bearer tokens. Confusing the two would either lock the public page or
+  // open the private one.
+  const control = await startControl();
+  t.after(() => control.stop());
+  const response = await fetch(`${control.url}/v1/pool`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=15");
+
+  const body = (await response.json()) as Record<string, unknown>;
+  assert.equal(body["algo"], "autolykos2");
+  assert.equal(body["stratum"], "stratum.example:3333");
+  assert.equal(body["contributors"], 0);
+
+  // A POST to it is refused; it is not an endpoint anyone writes to.
+  const written = await fetch(`${control.url}/v1/pool`, { method: "POST", body: "{}" });
+  assert.equal(written.status, 405);
 });

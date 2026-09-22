@@ -19,3 +19,6 @@ CLAUDE.md
 secrets/
 
 .DS_Store
+
+# Rust build output
+crates/**/target/

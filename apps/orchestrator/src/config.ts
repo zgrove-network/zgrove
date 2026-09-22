@@ -72,6 +72,12 @@ export function loadConfig(env: NodeJS.ProcessEnv): OrchestratorConfig {
           env["ZGROVE_STRATUM_HOST"] ??
           "127.0.0.1",
         stratumPort: readNumber(env, "ZGROVE_STRATUM_PORT", 3333),
+        // Said out loud on the public page. The login is not, and must not
+        // be: it is the account the whole pool's earnings arrive under.
+        algo: readRequired(env, "ZGROVE_ALGO"),
+        upstream: env["ZGROVE_UPSTREAM_LABEL"] ?? env["ZGROVE_UPSTREAM_HOST"] ?? "unnamed",
+        poolWindowSeconds: readNumber(env, "ZGROVE_POOL_WINDOW_SECONDS", 3600),
+        workPerDifficulty: readNumber(env, "ZGROVE_WORK_PER_DIFFICULTY", 2 ** 32),
       },
       allowLegacyLogin: env["ZGROVE_ALLOW_LEGACY_LOGIN"] === "true",
       challengeTtlSeconds: readNumber(env, "ZGROVE_CHALLENGE_TTL_SECONDS", 60),
