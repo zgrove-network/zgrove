@@ -313,3 +313,21 @@ test("a round cannot be settled twice, or settled after being sent", () => {
   assert.equal(dispatch.load(roundId)?.txid, "abc123");
   db.close();
 });
+
+test("a round is anchored only once it is paid, and only once", () => {
+  const { db, dispatch, roundId } = seeded();
+
+  // An unpaid round has no commitment worth making public yet: the receipt it
+  // would anchor does not exist.
+  assert.equal(dispatch.recordAnchor(roundId, "sig-early", DAY), false);
+  assert.equal(dispatch.load(roundId)?.anchorSignature, null);
+
+  assert.equal(dispatch.settleExternally(roundId, "abc123", DAY), true);
+  assert.equal(dispatch.recordAnchor(roundId, "sig-first", DAY), true);
+
+  // The anchor is what proves a receipt was not changed afterwards. A second
+  // one silently replacing the first would undo exactly that.
+  assert.equal(dispatch.recordAnchor(roundId, "sig-second", DAY), false);
+  assert.equal(dispatch.load(roundId)?.anchorSignature, "sig-first");
+  db.close();
+});

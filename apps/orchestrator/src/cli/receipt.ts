@@ -64,6 +64,9 @@ export function runReceipt(argv: readonly string[], env: NodeJS.ProcessEnv): num
       commitment: merkleRoot(entries),
       issuedAt: Math.floor(Date.now() / 1000),
       limits: RECEIPT_LIMITS,
+      ...(round.anchorSignature === null
+        ? {}
+        : { anchor: { chain: "solana" as const, signature: round.anchorSignature } }),
     };
 
     process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);

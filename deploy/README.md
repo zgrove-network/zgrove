@@ -87,6 +87,39 @@ copy of the file taken before then is missing them. Measured on a young
 database: a raw copy had no tables at all, while `zgrove backup` had every
 table and every row.
 
+## Anchoring
+
+After a round is paid, its commitment can be written into a Solana memo, which
+gives it a timestamp nobody here controls. A receipt that later disagrees with
+its memo was changed afterwards.
+
+The keypair lives outside the repository, in `deploy/secrets/` (ignored by git
+and by the image build), and should hold only fee money:
+
+```sh
+mkdir -p secrets
+solana-keygen new --no-bip39-passphrase -o secrets/solana.json
+chmod 600 secrets/solana.json
+# The container runs as uid 10001. A 0600 file owned by root is one it cannot
+# read, and loosening the mode instead is refused on purpose.
+chown 10001 secrets/solana.json
+```
+
+Then uncomment the `./secrets:/secrets:ro` line in `compose.yaml`, set
+`ZGROVE_SOLANA_KEYPAIR=/secrets/solana.json`, and send a few thousand lamports
+to the address it prints.
+
+```sh
+zgrove anchor --round 1             # dry run: signs, simulates, sends nothing
+zgrove anchor --round 1 --confirm   # writes it
+zgrove receipt --round 1            # now carries the anchor
+```
+
+The signature is printed the moment it is sent, before confirmation. If the
+process stops in between, the memo may still land; record it with
+`zgrove anchor --round 1 --signature <sig>`, which believes it only once the
+chain shows that transaction carrying this round's memo.
+
 ## Stratum is plain TCP
 
 As every pool's is. Someone positioned between a contributor and this server

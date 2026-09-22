@@ -42,6 +42,11 @@ export interface PayoutReceipt {
   readonly commitment: string;
   readonly issuedAt: number;
   readonly limits: readonly string[];
+  /**
+   * Where the commitment was written somewhere public, once it has been. A
+   * receipt that later disagrees with its anchor was changed afterwards.
+   */
+  readonly anchor?: { readonly chain: "solana"; readonly signature: string };
 }
 
 export interface EntryProof {
