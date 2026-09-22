@@ -1,3 +1,6 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 import { defaultKeyPath } from "./keystore.js";
 import type { MinerCommand } from "./miner.js";
 
@@ -5,6 +8,8 @@ export interface WorkerConfig {
   readonly controlUrl: string;
   readonly accountId: string;
   readonly keyPath: string;
+  /** This rig's own record of its shares. See ledger.ts. */
+  readonly ledgerPath: string;
   readonly requestTimeoutMs: number;
   readonly miner: MinerCommand | null;
 }
@@ -17,9 +22,14 @@ export function loadWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
     ),
     accountId: required(env, "ZGROVE_ACCOUNT_ID"),
     keyPath: env["ZGROVE_WORKER_KEY_PATH"] ?? defaultKeyPath(),
+    ledgerPath: env["ZGROVE_WORKER_LEDGER_PATH"] ?? defaultLedgerPath(),
     requestTimeoutMs: Number(env["ZGROVE_REQUEST_TIMEOUT_MS"] ?? 15_000),
     miner: readMiner(env),
   };
+}
+
+export function defaultLedgerPath(): string {
+  return join(homedir(), ".zgrove", "shares.jsonl");
 }
 
 /**

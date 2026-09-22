@@ -1,0 +1,18 @@
+# Built output and installed modules are recreated inside the image. Copying
+# a Mac's node_modules into a Linux image would carry a native module built
+# for the wrong platform.
+**/node_modules
+**/dist
+**/.next
+**/out
+**/*.tsbuildinfo
+
+# Local state never goes into an image.
+data
+*.sqlite
+*.sqlite-*
+.env
+deploy/.env
+
+.git
+.github

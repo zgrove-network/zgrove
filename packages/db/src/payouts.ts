@@ -313,6 +313,8 @@ export interface RecordedRound {
   readonly fromAddress: string | null;
   /** How the money left: through this process, or by hand. */
   readonly settlement: "wallet" | "external" | null;
+  /** The Solana transaction carrying this round's commitment, once written. */
+  readonly anchorSignature: string | null;
   readonly entries: readonly RecordedEntry[];
 }
 
@@ -334,13 +336,20 @@ export interface Dispatch {
   complete(roundId: number, txid: string, settlement?: "wallet" | "external"): void;
   /** Records a payment made outside this process, after it was verified. */
   settleExternally(roundId: number, txid: string, atSeconds: number): boolean;
+  /**
+   * Records where the commitment was published, or returns false. Only a sent
+   * round, and only once: conditional in the UPDATE, so a second anchor cannot
+   * quietly replace the first.
+   */
+  recordAnchor(roundId: number, signature: string, atSeconds: number): boolean;
   fail(roundId: number): void;
 }
 
 export function createDispatch(db: Db): Dispatch {
   const selectRound = db.prepare<[number], RoundRow>(`
     SELECT id, period_start, period_end, total_zat, total_weight,
-           dispatch_state, operation_id, txid, from_address, settlement
+           dispatch_state, operation_id, txid, from_address, settlement,
+           anchor_signature
     FROM payout_rounds WHERE id = ?
   `);
 
@@ -352,6 +361,12 @@ export function createDispatch(db: Db): Dispatch {
   // The guard against paying a round twice. A round already sending, sent or
   // failed does not match, so the update changes nothing and the caller is
   // told it did not win rather than proceeding on an assumption.
+  const setAnchor = db.prepare(`
+    UPDATE payout_rounds
+    SET anchor_signature = ?, anchored_at = ?
+    WHERE id = ? AND dispatch_state = 'sent' AND anchor_signature IS NULL
+  `);
+
   const beginSend = db.prepare(`
     UPDATE payout_rounds
     SET dispatch_state = 'sending', from_address = ?, dispatched_at = ?
@@ -396,6 +411,7 @@ export function createDispatch(db: Db): Dispatch {
         txid: row.txid,
         fromAddress: row.from_address,
         settlement: row.settlement,
+        anchorSignature: row.anchor_signature,
         entries: selectEntries.all(roundId).map((entry) => ({
           accountId: entry.account_id,
           payoutAddress: entry.payout_address,
@@ -421,6 +437,10 @@ export function createDispatch(db: Db): Dispatch {
       return setExternal.run(txid, atSeconds, roundId).changes === 1;
     },
 
+    recordAnchor(roundId, signature, atSeconds) {
+      return setAnchor.run(signature, atSeconds, roundId).changes === 1;
+    },
+
     fail(roundId) {
       setFailed.run(roundId);
     },
@@ -438,6 +458,7 @@ interface RoundRow {
   readonly txid: string | null;
   readonly from_address: string | null;
   readonly settlement: "wallet" | "external" | null;
+  readonly anchor_signature: string | null;
 }
 
 interface EntryRow {

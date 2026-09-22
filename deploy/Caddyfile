@@ -1,0 +1,10 @@
+# TLS for the control plane, with a certificate Caddy obtains and renews on
+# its own. Nothing else is served here: stratum does not come through Caddy.
+
+{$ZGROVE_DOMAIN} {
+	reverse_proxy orchestrator:3334
+
+	# A worker attests, gets a token, and leaves. Nothing here should be
+	# cached by anything between the two.
+	header Cache-Control "no-store"
+}
