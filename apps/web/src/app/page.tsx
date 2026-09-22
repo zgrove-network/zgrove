@@ -80,7 +80,8 @@ money actually moved        `}<b className="bad">not yet</b>
 
       <p className="dim">
         There is no receipt to show until there is. There will not be an
-        invented one.
+        invented one. When there is, it is on <a href="/receipts/">the
+        receipts page</a>.
       </p>
 
       <hr />
