@@ -11,6 +11,24 @@ export interface TransactionFacts {
   readonly shielded: boolean;
 }
 
+/**
+ * The explorer did not answer. Kept apart from "the explorer says there is no
+ * such transaction", because the two look identical in the response and mean
+ * opposite things to somebody who has just sent money: one is evidence, the
+ * other is the absence of it. Reported as not-found, it reads as "your payment
+ * never happened", and the obvious response to that is to send it again.
+ */
+export class ExplorerUnavailable extends Error {
+  constructor(detail: string) {
+    super(
+      `The explorer did not answer (${detail}). This says nothing about the ` +
+        `transaction — do not send it again. Try later, or point ` +
+        `ZGROVE_EXPLORER_URL at another explorer.`,
+    );
+    this.name = "ExplorerUnavailable";
+  }
+}
+
 export class NotOnChain extends Error {
   constructor(txid: string) {
     super(`No transaction ${txid} on Zcash mainnet`);
@@ -29,15 +47,36 @@ export class NotOnChain extends Error {
 export function createChainLookup(options: ChainLookupOptions) {
   return {
     async transaction(txid: string): Promise<TransactionFacts> {
-      const response = await fetch(`${options.explorerUrl}${txid}`, {
-        signal: AbortSignal.timeout(options.timeoutMs),
-      });
+      let response: Response;
+      try {
+        response = await fetch(`${options.explorerUrl}${txid}`, {
+          signal: AbortSignal.timeout(options.timeoutMs),
+        });
+      } catch (cause) {
+        throw new ExplorerUnavailable(cause instanceof Error ? cause.message : "unreachable");
+      }
+
+      if (!response.ok) {
+        throw new ExplorerUnavailable(`HTTP ${response.status}`);
+      }
 
       const body = (await response.json().catch(() => null)) as {
-        data?: Record<string, unknown>;
+        data?: Record<string, unknown> | null;
+        context?: { code?: number; error?: string };
       } | null;
 
-      const entry = body?.data?.[txid] as Record<string, unknown> | undefined;
+      if (body === null) {
+        throw new ExplorerUnavailable("the answer was not JSON");
+      }
+
+      // Blockchair answers 200 with its own code inside, and reports refusals
+      // there: a rate limit arrives as data null with an error beside it.
+      const code = body.context?.code;
+      if ((code !== undefined && code !== 200) || body.data === null) {
+        throw new ExplorerUnavailable(body.context?.error ?? `code ${String(code)}`);
+      }
+
+      const entry = body.data?.[txid] as Record<string, unknown> | undefined;
       const transaction = entry?.["transaction"] as Record<string, unknown> | undefined;
 
       if (transaction === undefined) {
