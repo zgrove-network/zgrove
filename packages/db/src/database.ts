@@ -21,11 +21,18 @@ export function openDatabase(path: string, options: OpenOptions = {}): Db {
   // A reader that arrives during a checkpoint should wait, not fail.
   db.pragma("busy_timeout = 5000");
 
-  // NORMAL rather than FULL: an OS crash or power loss can cost the most
-  // recent commits, where FULL would cost an fsync on every share written.
-  // The exposure is bounded by how often the proxy flushes, and this is worth
-  // revisiting before anything in this database settles a payout.
-  db.pragma("synchronous = NORMAL");
+  // FULL: every commit is on disk before it returns. This database now
+  // settles payouts, and a dispatch record lost to a power cut is a payment
+  // this process can no longer account for.
+  //
+  // The cost is an fsync per share, since each share is its own commit.
+  // Measured on an SSD: 45 µs a share, a ceiling near 22,000 shares a second,
+  // against 11 µs under NORMAL. A thousand GPUs produce on the order of a
+  // hundred shares a second. Network block storage fsyncs slower than a local
+  // SSD, so the ceiling on a VPS will be lower — still far above the load.
+  // When it is not, batch shares into one transaction per flush rather than
+  // loosening this.
+  db.pragma("synchronous = FULL");
 
   return db;
 }
