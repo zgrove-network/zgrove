@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { BACKUP_USAGE, runBackup } from "./backup.js";
 import { ACCOUNT_USAGE, ENROLL_USAGE, runAccount, runEnroll } from "./enroll.js";
 import { BIND_USAGE, runBindWallet } from "./bind.js";
 import { INIT_USAGE, runInit } from "./init.js";
@@ -21,6 +22,7 @@ const USAGE = `zgrove — operator commands for the orchestrator
   zgrove send [options]      pay a recorded round (dry run unless --confirm)
   zgrove settle [options]    record a round paid by hand, after checking the chain
   zgrove receipt [options]   the verifiable artifact for a round that was paid
+  zgrove backup --to <path>  a consistent copy of the database, while it runs
 
 Run a command with --help for its options.
 `;
@@ -58,6 +60,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return help(rest, SETTLE_USAGE) ?? runSettle(rest, process.env);
     case "receipt":
       return help(rest, RECEIPT_USAGE) ?? runReceipt(rest, process.env);
+    case "backup":
+      return help(rest, BACKUP_USAGE) ?? runBackup(rest, process.env);
     case undefined:
     case "--help":
     case "-h":

@@ -12,10 +12,17 @@ export interface OpenOptions {
  * included, opens readonly.
  */
 export function openDatabase(path: string, options: OpenOptions = {}): Db {
-  const db = new Database(path, { readonly: options.readonly ?? false });
+  const readonly = options.readonly ?? false;
+  const db = new Database(path, { readonly });
 
-  // WAL so a readonly stats query never blocks the proxy mid-share.
-  db.pragma("journal_mode = WAL");
+  // WAL so a readonly stats query never blocks the proxy mid-share. Set by
+  // the writer only: changing the journal mode writes the file header, which a
+  // readonly handle cannot do. A reader takes whatever mode the file is in —
+  // WAL for the live database, rollback for a backup, which VACUUM INTO writes
+  // without a log — and setting it here made every backup unopenable.
+  if (!readonly) {
+    db.pragma("journal_mode = WAL");
+  }
   db.pragma("foreign_keys = ON");
 
   // A reader that arrives during a checkpoint should wait, not fail.

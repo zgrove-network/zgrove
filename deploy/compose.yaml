@@ -1,0 +1,46 @@
+# The orchestrator and a TLS front for its control plane.
+#
+#   docker compose --env-file .env up -d --build
+#
+# Two ports reach the world and one does not. Stratum is published as plain
+# TCP, which is how every pool speaks it. The control plane hands out bearer
+# tokens, so it is never published: Caddy terminates TLS in front of it and is
+# the only thing that can reach it.
+
+services:
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file: .env
+    volumes:
+      - zgrove-data:/data
+    ports:
+      - "${ZGROVE_STRATUM_PUBLIC_PORT:-3333}:3333"
+    # Reachable on the compose network only. Not a host port.
+    expose:
+      - "3334"
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ZGROVE_DOMAIN: ${ZGROVE_DOMAIN:?set ZGROVE_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+
+volumes:
+  # The payout ledger. Back this up; it is the one thing here that cannot be
+  # rebuilt from the chain.
+  zgrove-data:
+  caddy-data:
+  caddy-config:
