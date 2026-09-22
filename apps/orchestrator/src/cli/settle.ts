@@ -2,7 +2,7 @@ import { parseArgs } from "node:util";
 
 import { createDispatch, migrate, openDatabase } from "@zgrove/db";
 
-import { createChainLookup, DEFAULT_EXPLORER } from "../wallet/chain.js";
+import { createTransactionLookup } from "../wallet/lookup.js";
 import { formatZec } from "./money.js";
 
 /**
@@ -25,6 +25,7 @@ export async function runSettle(
       txid: { type: "string" },
       confirm: { type: "boolean", default: false },
       explorer: { type: "string" },
+      lightwalletd: { type: "string" },
     },
     allowPositionals: false,
   });
@@ -56,10 +57,12 @@ export async function runSettle(
     const paid = round.entries.reduce((sum, entry) => sum + entry.amountZat, 0);
     const accounts = round.entries.filter((entry) => entry.amountZat > 0).length;
 
-    const facts = await createChainLookup({
-      explorerUrl: values.explorer ?? env["ZGROVE_EXPLORER_URL"] ?? DEFAULT_EXPLORER,
+    const lookup = createTransactionLookup({
+      explorerUrl: values.explorer ?? env["ZGROVE_EXPLORER_URL"],
+      lightwalletd: values.lightwalletd ?? env["ZGROVE_LIGHTWALLETD"],
       timeoutMs: 20_000,
-    }).transaction(txid);
+    });
+    const facts = await lookup.transaction(txid);
 
     if (!facts.exists) {
       throw new Error(`No transaction ${txid} on Zcash mainnet. Nothing recorded.`);
@@ -77,7 +80,8 @@ export async function runSettle(
       `round ${roundId}: ${accounts} account(s), ${formatZec(paid)} ZEC\n` +
         `txid ${txid}\n` +
         `on chain: yes${facts.blockHeight === null ? ", unconfirmed" : `, block ${facts.blockHeight}`}\n` +
-        `shielded: yes\n`,
+        `shielded: yes\n` +
+        `checked by: ${lookup.source}\n`,
     );
 
     if (values.confirm !== true) {
@@ -110,13 +114,19 @@ export const SETTLE_USAGE = `zgrove settle — record a payment made by hand
   --round <id>      the round that was paid (required)
   --txid <hex>      the Zcash transaction that paid it (required)
   --confirm         record it; without this the checks run and nothing is written
-  --explorer <url>  transaction lookup (or ZGROVE_EXPLORER_URL)
+  --lightwalletd <host:port>  where to look the transaction up (or ZGROVE_LIGHTWALLETD)
+  --explorer <url>  an HTTP explorer to use instead (or ZGROVE_EXPLORER_URL)
   --db <path>       accounting database
 
 For paying a round from a light wallet, on a machine with no room for a synced
 node. The transaction id is checked against the chain and refused if it does
 not exist or carries nothing shielded, because a receipt resting on an
 unverified id is worth only what the operator says it is.
+
+The check runs through lightwalletd, the same service light wallets use. The
+HTTP explorers are not usable from a server — they block datacenter addresses —
+and none of them decode Orchard, so they could not tell a fully shielded
+payment from an empty one.
 
 The receipt records that the round was settled by hand rather than by this
 process, since the two are not the same evidence.
