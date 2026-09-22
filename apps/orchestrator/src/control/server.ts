@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import type { Registry } from "@zgrove/db";
+import type { Registry, WorkerStats } from "@zgrove/db";
 import {
   ATTESTATION_MAX_AGE_SECONDS,
   isSolanaAddress,
@@ -14,6 +14,7 @@ import {
 
 import { log } from "../log.js";
 import type { ChallengeStore } from "./challenges.js";
+import { summarisePool, type PoolSummary } from "./pool.js";
 import type { SessionStore } from "./sessions.js";
 
 export interface ControlServerOptions {
@@ -23,6 +24,11 @@ export interface ControlServerOptions {
   /** Where a worker should point its miner once it holds a token. */
   readonly stratumHost: string;
   readonly stratumPort: number;
+  /** What the public summary says the pool is doing. */
+  readonly algo: string;
+  readonly upstream: string;
+  readonly poolWindowSeconds: number;
+  readonly workPerDifficulty: number;
 }
 
 export interface ControlServerDeps {
@@ -30,6 +36,8 @@ export interface ControlServerDeps {
   readonly sessions: SessionStore;
   readonly registry: Registry;
   readonly now: () => number;
+  /** Totals for the public summary. Per-worker rows never leave this call. */
+  readonly statsBetween: (fromSeconds: number, toSeconds: number) => readonly WorkerStats[];
 }
 
 /**
@@ -61,6 +69,16 @@ async function handle(
   options: ControlServerOptions,
   deps: ControlServerDeps,
 ): Promise<void> {
+  // The one public route. Everything else is a worker talking to the pool.
+  if (request.url === "/v1/pool") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      send(response, 405, { type: "reject", reason: "malformed" });
+      return;
+    }
+    sendPublic(response, poolSummary(options, deps));
+    return;
+  }
+
   if (request.method !== "POST") {
     send(response, 405, { type: "reject", reason: "malformed" });
     return;
@@ -326,6 +344,33 @@ async function readJsonBody(
   } catch {
     return null;
   }
+}
+
+function poolSummary(options: ControlServerOptions, deps: ControlServerDeps): PoolSummary {
+  const now = deps.now();
+  return summarisePool(deps.statsBetween(now - options.poolWindowSeconds, now), {
+    algo: options.algo,
+    upstream: options.upstream,
+    stratum: `${options.stratumHost}:${options.stratumPort}`,
+    windowSeconds: options.poolWindowSeconds,
+    workPerDifficulty: options.workPerDifficulty,
+    asOf: now,
+  });
+}
+
+/**
+ * Public, so it says so: any site may read it, and it may be held briefly.
+ * Unlike every other response here it carries no token and nothing private.
+ */
+function sendPublic(response: ServerResponse, summary: PoolSummary): void {
+  const body = JSON.stringify(summary);
+  response.writeHead(200, {
+    "content-type": "application/json",
+    "content-length": Buffer.byteLength(body),
+    "access-control-allow-origin": "*",
+    "cache-control": "public, max-age=15",
+  });
+  response.end(body);
 }
 
 function send(

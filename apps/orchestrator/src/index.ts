@@ -152,6 +152,7 @@ const control = createControlServer(config.control.server, {
   sessions: workerSessions,
   registry,
   now: () => Math.floor(Date.now() / 1000),
+  statsBetween: (from, to) => accounting.statsBetween(from, to),
 });
 
 control.on("error", (error) => {
