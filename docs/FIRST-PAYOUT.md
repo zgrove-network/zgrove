@@ -108,6 +108,14 @@ not decode; settle recognises it because it spent nothing transparent. This
 was broken until it was checked against live Orchard transactions, and fixed
 before anything was paid.
 
+**If it says the explorer did not answer, do not send the payment again.** The
+message names the reason — a rate limit, a timeout, an unreachable host. It is
+about the explorer, not about your transaction, and it appears when nothing is
+known either way. Blockchair's free tier is easy to exhaust and answers with
+an HTTP 430; wait, or point `ZGROVE_EXPLORER_URL` at another explorer, and run
+the same command again. Settling twice is refused, but a second *payment*
+cannot be recalled.
+
 ## 7. Publish
 
 ```sh
