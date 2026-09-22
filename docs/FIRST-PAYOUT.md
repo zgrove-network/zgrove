@@ -103,18 +103,25 @@ zgrove settle --round 1 --txid <txid> --confirm  # records it
 ```
 
 It looks the transaction up on chain and refuses one that is not there or not
-shielded. A payment from Zashi goes through Orchard, which the explorer does
-not decode; settle recognises it because it spent nothing transparent. This
-was broken until it was checked against live Orchard transactions, and fixed
-before anything was paid.
+shielded. The lookup goes through lightwalletd, the service light wallets
+already talk to, which hands over the raw transaction. A payment from Zashi
+goes through Orchard; settle recognises it because the transaction itself
+shows it spent nothing transparent.
 
-**If it says the explorer did not answer, do not send the payment again.** The
-message names the reason — a rate limit, a timeout, an unreachable host. It is
-about the explorer, not about your transaction, and it appears when nothing is
-known either way. Blockchair's free tier is easy to exhaust and answers with
-an HTTP 430; wait, or point `ZGROVE_EXPLORER_URL` at another explorer, and run
-the same command again. Settling twice is refused, but a second *payment*
-cannot be recalled.
+The HTTP explorers were tried first and are not usable here. Blockchair blocks
+datacenter addresses — this server's was blocked the first time it asked,
+having made almost no requests — and the others want an API key. None of them
+decode Orchard either, so whether a payment was shielded had to be guessed
+from fields they had left out. That guess was wrong for real payments until it
+was checked against live Orchard transactions, and fixed before anything was
+paid.
+
+**If it says the lookup did not answer, do not send the payment again.** The
+message names the reason — a timeout, an unreachable host, a gRPC status. It
+is about the service, not about your transaction, and it appears exactly when
+nothing is known either way. Point `--lightwalletd` at another server, or
+`--explorer` at an HTTP explorer, and run the same command again. Settling
+twice is refused, but a second *payment* cannot be recalled.
 
 ## 7. Publish
 
