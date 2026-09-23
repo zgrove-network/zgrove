@@ -1,8 +1,14 @@
+import { Mark } from "./mark";
+import { PoolStatus } from "./pool-status";
+
 export default function Home() {
   return (
     <div className="page">
       <p className="bar">
-        <b>zgrove</b> — a mining pool that cannot see you · zgrove.network
+        <Mark />
+        <span>
+          <b>zgrove</b> — a mining pool that cannot see you · zgrove.network
+        </span>
       </p>
 
       <h1>Mine to a shielded address.</h1>
@@ -15,7 +21,11 @@ export default function Home() {
         Neither step leaves a public record of what you earned.
       </p>
 
-      <hr />
+      <div className="hero" role="presentation" />
+
+      <h2>live</h2>
+
+      <PoolStatus />
 
       <h2>the problem</h2>
 
@@ -69,7 +79,7 @@ $ grep -c '`}<b>you</b>{`' everything-the-pool-received.txt
         and your own inclusion is not proof that nobody was left out.
       </p>
 
-      <h2>status</h2>
+      <h2>what is built</h2>
 
       <pre>
 {`proxy against real pools    `}<b className="good">working</b>{`
@@ -79,9 +89,12 @@ money actually moved        `}<b className="bad">not yet</b>
       </pre>
 
       <p className="dim">
-        There is no receipt to show until there is. There will not be an
-        invented one. When there is, it is on <a href="/receipts/">the
-        receipts page</a>.
+        Read that as what it is: not a measurement, but the operator&apos;s own
+        account of the code. The block above it is the pool answering for
+        itself; this one is us saying so. The last line is the only one that
+        matters yet, and it stays red until a payment has moved and can be
+        checked on <a href="/receipts/">the receipts page</a>. There is no
+        receipt to show until there is, and there will not be an invented one.
       </p>
 
       <hr />
