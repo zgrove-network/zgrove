@@ -5,12 +5,15 @@ import { DEFAULT_LIGHTWALLETD, createLightwalletdLookup, type GrpcCall } from ".
  * Picks the service that answers "is this transaction on the chain, and did it
  * spend from a shielded pool".
  *
- * lightwalletd is the default because the explorers are not usable from a
- * server: blockchair blocks datacenter addresses, and this pool's was blocked
- * on the day it was first tried, having made almost no requests. An explorer
- * stays reachable on purpose, for a day when the light wallet servers are the
- * ones that are down — two ways to ask is the point, since the cost of getting
- * no answer is an operator who thinks a payout never landed.
+ * lightwalletd is the default because it returns the raw transaction, so
+ * "was this shielded" is read from the transaction rather than inferred from
+ * what an explorer left out of its JSON. No explorer decodes Orchard, and that
+ * inference refused real payments until it was caught.
+ *
+ * An explorer stays reachable on purpose, for a day when the light wallet
+ * servers are the ones that are down. Two ways to ask is the point: the cost
+ * of getting no answer at all is an operator who believes a payout never
+ * landed.
  */
 export interface LookupChoice {
   /** An HTTP explorer, which replaces lightwalletd when it is set. */

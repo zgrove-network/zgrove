@@ -3,6 +3,7 @@
   --text: #d8d4cc;
   --bright: #f2efe8;
   --dim: #6e6a63;
+  --line: #2a2926;
   --good: #8fae7e;
   --bad: #c25b4e;
 }
@@ -20,26 +21,31 @@ body {
 
 /* Laid out like something printed by a program: one column of fixed columns,
    hierarchy from indentation rather than from type size. */
-.page { max-width: 74ch; padding: 40px 20px 80px; }
+.page { max-width: 74ch; margin: 0 auto; padding: 40px 20px 80px; }
 @media (min-width: 720px) { .page { padding: 56px 40px 100px; } }
 
 .bar { color: var(--dim); margin-bottom: 44px; }
 .bar b { color: var(--text); font-weight: 400; }
 
 h1 {
-  font-size: 14px;
+  font-size: 22px;
   font-weight: 400;
-  line-height: 1.7;
-  margin: 0 0 8px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
   color: var(--bright);
 }
+@media (min-width: 720px) { h1 { font-size: 26px; } }
 h1::before { content: "$ "; color: var(--dim); }
 
 h2 {
   font-size: 14px;
   font-weight: 400;
   color: var(--bright);
-  margin: 40px 0 14px;
+  letter-spacing: 0.04em;
+  margin: 52px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--line);
 }
 h2::before { content: "## "; color: var(--dim); }
 
@@ -56,7 +62,7 @@ a:hover { color: var(--bright); text-decoration-color: var(--bright); }
 pre { margin: 0 0 16px; padding-left: 4ch; overflow-x: auto; white-space: pre; color: var(--dim); }
 pre b { color: var(--bright); font-weight: 400; }
 
-hr { border: 0; border-top: 1px dashed #2a2926; margin: 36px 0; }
+hr { border: 0; border-top: 1px dashed var(--line); margin: 36px 0; }
 
 /* calculator */
 .grid { display: grid; gap: 14px 3ch; grid-template-columns: repeat(auto-fit, minmax(20ch, 1fr)); padding-left: 4ch; margin-bottom: 22px; }
@@ -69,11 +75,45 @@ input, select {
   color: var(--bright);
   padding: 2px 0;
   font: inherit;
-  border-bottom: 1px solid #2a2926;
+  border-bottom: 1px solid var(--line);
   border-radius: 0;
 }
 input:focus, select:focus { outline: none; border-bottom-color: var(--dim); }
 table { border-collapse: collapse; margin-left: 4ch; }
 th, td { text-align: right; padding: 3px 2ch 3px 0; }
 th:first-child, td:first-child { text-align: left; padding-right: 3ch; }
-th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed #2a2926; }
+th { color: var(--dim); font-weight: 400; border-bottom: 1px dashed var(--line); }
+
+/* The mark, beside the wordmark. Strokes inherit the text colour. */
+.bar { display: flex; align-items: center; gap: 10px; }
+.bar svg { width: 13px; height: auto; flex: none; color: var(--text); }
+
+/* Growth rings. Scaled by height rather than fitted, so the band shows the
+   dense middle of the source and crops past the wordmark burned into its left
+   edge; faded out at the bottom so it ends rather than stops. */
+.hero {
+  height: 140px;
+  margin: 30px 0 4px;
+  background: url(/rings.jpg) right center / auto 260% no-repeat;
+  opacity: 0.42;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 52%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0 52%, transparent 100%);
+}
+@media (min-width: 720px) { .hero { height: 180px; } }
+
+/* The one thing a visitor came for. Everything else on this page can be read
+   later; this is the line they copy. */
+.panel { border: 1px dashed var(--line); padding: 18px 20px; margin: 0 0 16px; }
+.panel .label { color: var(--dim); }
+.addr {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  font-size: 18px; color: var(--bright); margin: 4px 0 12px;
+}
+@media (min-width: 720px) { .addr { font-size: 21px; } }
+.copy {
+  font: inherit; font-size: 13px; color: var(--dim);
+  background: transparent; border: 1px dashed var(--line);
+  padding: 2px 10px; cursor: pointer; border-radius: 0;
+}
+.copy:hover { color: var(--bright); border-color: var(--dim); }
+.panel pre { padding-left: 0; margin: 0; }
