@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://zgrove.network"),
-  title: "zGrove — mine to a shielded address",
+  title: "zGrove",
   description:
     "Mine with your GPU through a proxy the pool cannot see past. Earnings settle in shielded ZEC, so no contributor's income is on any chain.",
   icons: {

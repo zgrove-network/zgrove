@@ -2,7 +2,7 @@ import { Calculator } from "../calculator";
 import { loadCoins } from "../../lib/coins";
 
 export const metadata = {
-  title: "zGrove — should you even be mining?",
+  title: "Mining calculator",
   description:
     "Revenue beside power cost, both halves of the arithmetic, for your card and your electricity price.",
 };

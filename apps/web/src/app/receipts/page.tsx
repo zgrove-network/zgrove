@@ -1,7 +1,7 @@
 import { loadReceipts, loadUpstream, type Receipt } from "../../lib/receipts";
 
 export const metadata = {
-  title: "zGrove — receipts",
+  title: "Receipts",
   description:
     "Every round that paid anyone, and what can be checked about it without taking the operator's word.",
 };
