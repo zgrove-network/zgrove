@@ -32,6 +32,10 @@ services:
       - "443:443"
     environment:
       ZGROVE_DOMAIN: ${ZGROVE_DOMAIN:?set ZGROVE_DOMAIN in .env}
+      # Ring's ledger, if it runs here. Compose reads .env for its own
+      # interpolation; a variable still has to be handed to the container or
+      # Caddy only ever sees the default.
+      RING_LEDGER_DOMAIN: ${RING_LEDGER_DOMAIN:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
