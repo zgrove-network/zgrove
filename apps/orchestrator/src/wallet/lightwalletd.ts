@@ -6,12 +6,16 @@ import { ExplorerUnavailable, type TransactionFacts } from "./chain.js";
  * Looks a transaction up through lightwalletd, the service every Zcash light
  * wallet already talks to.
  *
- * The commercial explorers turned out to be unusable from a server: blockchair
- * blocks datacenter addresses — including this pool's, which had made almost no
- * requests — and the others want an API key. Worse, none of them decode
- * Orchard, so whether a payment was shielded had to be inferred from fields
- * they had simply left out. lightwalletd hands over the raw transaction, so the
- * question is answered from the transaction itself.
+ * The reason is Orchard. No explorer decodes that bundle, so whether a payment
+ * was shielded had to be inferred from fields they had simply left out — an
+ * inference that refused real payments until it was caught. lightwalletd hands
+ * over the raw transaction, so the question is answered from the transaction
+ * itself rather than from what somebody's parser omitted.
+ *
+ * Reliability is the second reason. Blockchair rate-limits hard and sometimes
+ * refuses outright, at the TLS handshake, from no particular address; an
+ * earlier note here called that a datacenter ban, which a later check did not
+ * bear out. Either way it is not a service to make a payout depend on.
  *
  * It speaks gRPC, which is HTTP/2 carrying length-prefixed protobuf. One method
  * with two small messages does not justify a gRPC library inside the process

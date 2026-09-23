@@ -123,10 +123,10 @@ node. The transaction id is checked against the chain and refused if it does
 not exist or carries nothing shielded, because a receipt resting on an
 unverified id is worth only what the operator says it is.
 
-The check runs through lightwalletd, the same service light wallets use. The
-HTTP explorers are not usable from a server — they block datacenter addresses —
-and none of them decode Orchard, so they could not tell a fully shielded
-payment from an empty one.
+The check runs through lightwalletd, the same service light wallets use, which
+returns the raw transaction. No HTTP explorer decodes Orchard, so none of them
+can tell a fully shielded payment from an empty one; they also rate-limit hard,
+which is not a thing to make a payout depend on.
 
 The receipt records that the round was settled by hand rather than by this
 process, since the two are not the same evidence.

@@ -108,13 +108,17 @@ already talk to, which hands over the raw transaction. A payment from Zashi
 goes through Orchard; settle recognises it because the transaction itself
 shows it spent nothing transparent.
 
-The HTTP explorers were tried first and are not usable here. Blockchair blocks
-datacenter addresses — this server's was blocked the first time it asked,
-having made almost no requests — and the others want an API key. None of them
-decode Orchard either, so whether a payment was shielded had to be guessed
-from fields they had left out. That guess was wrong for real payments until it
-was checked against live Orchard transactions, and fixed before anything was
-paid.
+The HTTP explorers were tried first. None of them decode Orchard, so whether a
+payment was shielded had to be guessed from fields they had left out, and that
+guess was wrong for real payments until it was checked against live Orchard
+transactions and fixed before anything was paid. lightwalletd returns the raw
+transaction, so there is nothing left to guess.
+
+Blockchair also rate-limits hard and sometimes refuses at the TLS handshake. An
+earlier version of this page called that a datacenter ban; a later check found
+it answering normally from the same machines, so it is a rate limit rather than
+a block. It is still not a service to rest a payout on, and the others want an
+API key.
 
 **If it says the lookup did not answer, do not send the payment again.** The
 message names the reason — a timeout, an unreachable host, a gRPC status. It
