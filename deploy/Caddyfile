@@ -8,3 +8,15 @@
 	@private not path /v1/pool
 	header @private Cache-Control "no-store"
 }
+
+# Ring's ledger, which lives in its own repository and its own containers on
+# this machine. The two share nothing but this file and the network it names.
+# Left out of the site above on purpose: that one is the pool's, and a
+# visitor reaching the wrong service by a stray path would be told things
+# about the wrong system.
+{$RING_LEDGER_DOMAIN:ledger.invalid} {
+	reverse_proxy api:5321
+
+	# Balances and tokens. Nothing here may be held anywhere.
+	header Cache-Control "no-store"
+}
