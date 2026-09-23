@@ -26,7 +26,6 @@ COPY packages/db/package.json packages/db/
 COPY apps/orchestrator/package.json apps/orchestrator/
 COPY apps/worker/package.json apps/worker/
 COPY apps/web/package.json apps/web/
-COPY apps/ring/package.json apps/ring/
 RUN pnpm install --frozen-lockfile --filter "@zgrove/orchestrator..."
 
 COPY packages/protocol packages/protocol
