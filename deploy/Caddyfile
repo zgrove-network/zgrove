@@ -14,7 +14,10 @@
 # Left out of the site above on purpose: that one is the pool's, and a
 # visitor reaching the wrong service by a stray path would be told things
 # about the wrong system.
-{$RING_LEDGER_DOMAIN:ledger.invalid} {
+# Defaults to localhost, which Caddy serves with its own internal certificate
+# and never asks a public authority about. An unroutable name here instead
+# had Caddy retrying Let's Encrypt every minute for a month.
+{$RING_LEDGER_DOMAIN:localhost} {
 	reverse_proxy api:5321
 
 	# Balances and tokens. Nothing here may be held anywhere.
