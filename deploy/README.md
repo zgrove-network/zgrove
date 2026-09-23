@@ -9,7 +9,7 @@ requirements are Docker and a hostname pointing at the machine.
 # Docker, on Debian or Ubuntu.
 curl -fsSL https://get.docker.com | sh
 
-git clone git@github.com:quietmint-tech/zgrove.git
+git clone git@github.com:zgrove-network/zgrove.git
 cd zgrove/deploy
 cp .env.example .env
 $EDITOR .env

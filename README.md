@@ -1,6 +1,6 @@
 # zGrove
 
-[![CI](https://github.com/quietmint-tech/zgrove/actions/workflows/ci.yml/badge.svg)](https://github.com/quietmint-tech/zgrove/actions/workflows/ci.yml)
+[![CI](https://github.com/zgrove-network/zgrove/actions/workflows/ci.yml/badge.svg)](https://github.com/zgrove-network/zgrove/actions/workflows/ci.yml)
 
 Distributed mining pool for Zcash. Contributors mine on their own hardware and
 are paid in ZEC to shielded addresses, so no participant's earnings are visible
